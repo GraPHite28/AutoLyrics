@@ -1,6 +1,6 @@
 [package]
 name = "autolyrics"
-version = "0.1.0"
+version = "0.1.1"
 description = "Автоматические синхронизированные тексты песен и визуализатор"
 edition = "2021"
 
