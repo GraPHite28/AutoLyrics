@@ -42,10 +42,9 @@ pub async fn find(q: Query) -> Result<Option<LyricsResult>, reqwest::Error> {
         ("track_name", q.clean_title.clone()),
         ("artist_name", q.main_artist.clone()),
     ]];
-    for keyword in matching::keywords(&q) {
+    for keyword in matching::keywords(&q).into_iter().take(3) {
         attempts.push(vec![("q", keyword)]);
     }
-    attempts.push(vec![("track_name", q.clean_title.clone())]);
 
     for params in attempts {
         let params: Vec<(&str, &str)> = params.iter().map(|(k, v)| (*k, v.as_str())).collect();

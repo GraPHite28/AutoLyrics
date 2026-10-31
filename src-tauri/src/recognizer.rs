@@ -51,6 +51,8 @@ const PREDICTION_VERIFY_AFTER: Duration = Duration::from_millis(4500);
 const BACKOFF_S: [u64; 4] = [5, 12, 25, 45];
 /// Запас после расчётного конца трека: позиция по часам может чуть отставать.
 const END_GRACE_MS: f64 = 1500.0;
+/// Сколько перепроверок подряд без результата нужно, чтобы забыть текущий трек.
+const MISSES_TO_FORGET: u32 = 4;
 /// Расхождение позиции, после которого считаем, что трек перемотали.
 const SEEK_TOLERANCE_MS: f64 = 1500.0;
 /// `offset` в ответе Shazam — позиция начала нашего фрагмента в треке.
@@ -449,7 +451,7 @@ impl Recognizer {
                     self.notice("nomatch", "", "");
                 }
                 self.status("nomatch");
-                self.register_miss(now);
+                self.register_miss(now, true);
             }
             Outcome::Failed(message) => {
                 eprintln!("[recognizer] {message}");
@@ -457,20 +459,25 @@ impl Recognizer {
                     self.notice("noconn", "", "");
                 }
                 self.status("error");
-                self.register_miss(now);
+                // сбой сети — не признак смены трека, песню из-за него не забываем
+                self.register_miss(now, false);
             }
         }
     }
 
-    fn register_miss(&mut self, now: Instant) {
+    /// counts — промах считается «в зачёт» смены трека (ничего не нашлось). Сбой сети — нет.
+    fn register_miss(&mut self, now: Instant, counts: bool) {
         let delay = BACKOFF_S[self.attempts.min(BACKOFF_S.len() - 1)];
         self.attempts += 1;
         self.next_attempt = now + Duration::from_secs(delay);
         if self.active.is_some() {
-            self.misses += 1;
+            if counts {
+                self.misses += 1;
+            }
             self.next_check = now + Duration::from_secs(12);
-            // Дважды подряд ничего не нашли — скорее всего, пошёл другой трек.
-            if self.misses >= 3 && !self.pinned {
+            // Несколько раз подряд ничего не нашли (тихий проигрыш или песня не из базы) —
+            // скорее всего, пошёл другой трек.
+            if self.misses >= MISSES_TO_FORGET && !self.pinned {
                 self.reset(true);
             }
         }
@@ -502,7 +509,7 @@ impl Recognizer {
             // Не угадали — дальше обычный путь: показываем то, что нашёл Shazam.
         }
 
-        let same_as_active = self.active.as_ref().is_some_and(|a| a.key == best.cand.key);
+        let same_as_active = self.is_active_song(&best.cand);
         let known = self.entries.iter().any(|e| e.cand.key == best.cand.key);
 
         if same_as_active || (self.pinned && known) {
@@ -542,8 +549,17 @@ impl Recognizer {
         }
     }
 
+    /// Это та же песня, что сейчас на экране? Ключи у Shazam для разных изданий одной песни
+    /// отличаются, поэтому сверяем ещё и по названию с артистом — иначе перепроверка принимала бы
+    /// то же самое за «новый трек» и перерисовывала экран.
+    fn is_active_song(&self, cand: &Candidate) -> bool {
+        let Some(active) = &self.active else { return false };
+        active.key == cand.key
+            || self.entries.get(self.selected).is_some_and(|e| same_song(&e.cand, cand))
+    }
+
     fn merge(&mut self, entry: Entry) {
-        match self.entries.iter_mut().find(|e| e.cand.key == entry.cand.key) {
+        match self.entries.iter_mut().find(|e| e.cand.key == entry.cand.key || same_song(&e.cand, &entry.cand)) {
             Some(existing) => {
                 existing.anchor_pos_ms = entry.anchor_pos_ms;
                 existing.anchor_at = entry.anchor_at;
@@ -784,4 +800,35 @@ fn data_url(bytes: &[u8]) -> String {
         "image/jpeg"
     };
     format!("data:{mime};base64,{}", STANDARD.encode(bytes))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cand(key: &str, title: &str, artist: &str) -> Candidate {
+        Candidate {
+            key: key.into(),
+            title: title.into(),
+            artist: artist.into(),
+            album: String::new(),
+            cover_url: None,
+            genre: None,
+            cover: None,
+        }
+    }
+
+    #[test]
+    fn other_release_of_the_same_song_is_the_same_song() {
+        let album = cand("101", "Banger (feat. OISEAU & PAPILLON)", "Miyagi & Эндшпиль");
+        let single = cand("202", "Banger", "Miyagi, Эндшпиль");
+        assert!(same_song(&album, &single));
+    }
+
+    #[test]
+    fn different_songs_are_not() {
+        let a = cand("1", "Banger", "Miyagi & Эндшпиль");
+        assert!(!same_song(&a, &cand("2", "I Got Love", "Miyagi & Эндшпиль")));
+        assert!(!same_song(&a, &cand("3", "Banger", "Tismé")));
+    }
 }

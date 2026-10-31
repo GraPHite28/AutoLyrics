@@ -163,12 +163,12 @@ async fn find_everywhere(q: Query) -> Result<LyricsResult, String> {
     if musixmatch::key().is_some() {
         sources.push(("Musixmatch", spawn_source(musixmatch::find, q)));
     }
-    let total = sources.len();
     let debug = std::env::var_os("AUTOLYRICS_DEBUG").is_some();
 
     let mut plain_fallback: Option<LyricsResult> = None;
     let mut errors: Vec<String> = Vec::new();
-    let mut primary_failed = false;
+    // Сколько источников дали определённый ответ («есть» или «нет»).
+    let mut answered = 0usize;
 
     // Медленный или зависший источник не должен задерживать ответ остальных.
     let deadline = tokio::time::Instant::now() + SEARCH_DEADLINE;
@@ -178,13 +178,13 @@ async fn find_everywhere(q: Query) -> Result<LyricsResult, String> {
         let joined = match tokio::time::timeout_at(deadline, task).await {
             Ok(joined) => joined,
             Err(_) => {
-                primary_failed |= name == "LRCLIB";
                 errors.push(format!("{name}: нет ответа"));
                 continue;
             }
         };
         match joined {
             Ok(Ok(Some(result))) => {
+                answered += 1;
                 if debug {
                     eprintln!("[lyrics] {name}: найден ({} строк)", result.synced.len());
                 }
@@ -197,6 +197,7 @@ async fn find_everywhere(q: Query) -> Result<LyricsResult, String> {
                 plain_fallback.get_or_insert(result);
             }
             Ok(Ok(None)) => {
+                answered += 1;
                 if debug {
                     eprintln!("[lyrics] {name}: нет");
                 }
@@ -205,7 +206,6 @@ async fn find_everywhere(q: Query) -> Result<LyricsResult, String> {
                 if debug {
                     eprintln!("[lyrics] {name}: ошибка {err}");
                 }
-                primary_failed |= name == "LRCLIB";
                 errors.push(format!("{name}: {err}"));
             }
             Err(err) => errors.push(format!("{name}: {err}")),
@@ -215,9 +215,10 @@ async fn find_everywhere(q: Query) -> Result<LyricsResult, String> {
     if let Some(plain) = plain_fallback {
         return Ok(plain);
     }
-    // Основной источник или большинство остальных не ответили — это сбой сети,
-    // а не «текста нет»: пользователю лучше предложить повторить поиск.
-    if primary_failed || errors.len() * 2 > total {
+    // «Проверьте интернет» — только если не ответил НИ ОДИН источник. Если хоть кто-то честно
+    // сказал «такого текста нет», то текста нет: медленный или упавший источник (например,
+    // LRCLIB на редкой песне) не должен превращаться в сообщение про сеть.
+    if answered == 0 {
         return Err(errors.join("; "));
     }
     Ok(LyricsResult::default())
@@ -243,6 +244,21 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Песни, которой нет нигде, — это «текста нет», а не ошибка сети (нужен интернет).
+    #[test]
+    #[ignore]
+    fn live_missing_track_is_not_a_network_error() {
+        let started = std::time::Instant::now();
+        let result = tauri::async_runtime::block_on(find_everywhere(Query::new(
+            "Qzxv Wplm Nonexistent Song 8841",
+            "Zyxwv Qrstu Nobody",
+            "",
+            0,
+        )));
+        println!("ответ за {:.1} с: {:?}", started.elapsed().as_secs_f32(), result.as_ref().map(|r| r.found));
+        assert!(matches!(result, Ok(ref r) if !r.found), "ожидали «текста нет», получили {:?}", result.as_ref().map(|r| r.found));
+    }
 
     /// Живая проверка источников (нужен интернет): `cargo test live -- --ignored --nocapture`
     #[test]
