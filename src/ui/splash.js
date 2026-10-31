@@ -130,10 +130,11 @@ export class Splash {
   }
 
   /** Текст найден: заставка уезжает вверх и остаётся приглушённой (или гаснет, если этап выключен). */
-  dock() {
+  /** @param keep не прятать заставку, даже если этап «уезжает вверх» выключен (дзен-режим) */
+  dock(keep = false) {
     if (this.state !== 'track' && this.state !== 'docked') return;
     this.setNote('');
-    this.el.classList.add(this.flags().dock ? 'docked' : 'faded');
+    this.el.classList.add(keep || this.flags().dock ? 'docked' : 'faded');
     this.state = 'docked';
   }
 

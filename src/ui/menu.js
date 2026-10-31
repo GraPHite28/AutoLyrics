@@ -1,24 +1,31 @@
 /**
- * Контекстное меню по ПКМ. Весь интерфейс скрыт, пока пользователь
- * не нажмёт правую кнопку мыши; через несколько секунд бездействия меню исчезает.
+ * Контекстное меню по ПКМ. Весь интерфейс скрыт, пока пользователь не нажмёт правую кнопку мыши;
+ * через несколько секунд бездействия меню исчезает. Настройки разложены по трём вкладкам:
+ * «Трек» (песня, текст, распознавание), «Вид» (визуализатор, цвета, дзен-режим, анимации)
+ * и «Программа» (окно, язык, автозапуск).
  */
 
 import { nativeName, onLanguageChange, t } from '../i18n/index.js';
 
 const AUTO_HIDE_MS = 5000;
 const EDGE = 12;
+const TABS = ['track', 'look', 'app'];
 
 export class Menu {
   /**
    * @param root элемент #menu
-   * @param api  { getTrack, getOffsetMs, shiftOffset, fontDelta, setSoft, getSoft,
-   *               refetch, toggleTop, isTop, toggleFullscreen, minimize, close,
-   *               getCandidates, selectCandidate, recognizeNow, toggleAudio, isAudio,
-   *               getLyricsSource, openLyricsDir, isAnim, toggleAnim,
+   * @param api  { getTrack, getOffsetMs, shiftOffset, fontDelta, getCandidates, selectCandidate,
+   *               refetch, recognizeNow, isAudio, toggleAudio, isRecheck, toggleRecheck,
+   *               isPredict, togglePredict, getLyricsSource, openLyricsDir,
    *               getMusixmatchKey, setMusixmatchKey, commitMusixmatchKey,
+   *               isZen, toggleZen, isZenInfo, toggleZenInfo,
    *               getVizMode, getVizInfo, cycleViz, getVizIntensity, setVizIntensity,
-   *               pickLanguage, isGlass, toggleGlass, decorate, isPredict, togglePredict,
-   *               isAutostart, toggleAutostart, donateVisible, openDonate }
+   *               getSoft, setSoft, isAnim, toggleAnim, isGlass, toggleGlass,
+   *               getBgMode, toggleBgMode, getBgColors, setBgColor,
+   *               getEqMode, toggleEqMode, getEqColors, setEqColor,
+   *               toggleTop, isTop, toggleFullscreen, minimize, close, pickLanguage,
+   *               isAutostart, toggleAutostart, donateVisible, openDonate,
+   *               getMenuTab, setMenuTab, decorate }
    */
   constructor(root, api) {
     this.root = root;
@@ -54,7 +61,13 @@ export class Menu {
   open(x, y) {
     this.refresh();
     this.root.classList.remove('hidden');
-    // позиционируем после показа, чтобы знать размеры, и не выходим за края окна
+    this.#place(x, y);
+    this.#armTimer();
+  }
+
+  /** Ставит меню у курсора, не выходя за края окна; запоминает точку для смены вкладки. */
+  #place(x, y) {
+    this.anchor = [x, y];
     const w = this.root.offsetWidth;
     const h = this.root.offsetHeight;
     const left = Math.max(EDGE, Math.min(x, window.innerWidth - w - EDGE));
@@ -62,7 +75,6 @@ export class Menu {
     this.root.style.left = `${left}px`;
     this.root.style.top = `${top}px`;
     this.root.style.transformOrigin = `${x - left}px ${y - top}px`;
-    this.#armTimer();
   }
 
   close() {
@@ -72,38 +84,44 @@ export class Menu {
 
   /** Подтянуть актуальные данные трека и значения настроек. */
   refresh() {
-    const track = this.api.getTrack();
+    const { api } = this;
+    const track = api.getTrack();
     this.cover.src = track?.cover || '';
     this.cover.style.visibility = track?.cover ? 'visible' : 'hidden';
     this.title.textContent = track?.title || t('menu.noTrack');
     this.artist.textContent =
-      track?.artist || (this.api.isAudio() ? t('menu.listening') : t('menu.startMusic'));
-    this.offsetValue.textContent = formatOffset(this.api.getOffsetMs());
-    this.soft.value = this.api.getSoft();
-    this.top.classList.toggle('on', this.api.isTop());
-    this.#refreshViz();
-    this.mxm.value = this.api.getMusixmatchKey();
+      track?.artist || (api.isAudio() ? t('menu.listening') : t('menu.startMusic'));
+    this.offsetValue.textContent = formatOffset(api.getOffsetMs());
+    this.soft.value = api.getSoft();
+    this.mxm.value = api.getMusixmatchKey();
     for (const [key, button] of Object.entries(this.anim)) {
-      button.classList.toggle('on', this.api.isAnim(key));
+      button.classList.toggle('on', api.isAnim(key));
     }
-    const source = this.api.getLyricsSource();
+    const source = api.getLyricsSource();
     this.source.hidden = !source;
     this.source.textContent = source ? t('menu.lyricsSource', { source }) : '';
+    this.#refreshViz();
     this.#refreshToggles();
-    this.donate.hidden = !this.api.donateVisible();
+    this.#refreshColors();
+    this.donate.hidden = !api.donateVisible();
     this.renderCandidates();
   }
 
   #refreshToggles() {
     const { api } = this;
-    this.audio.classList.toggle('on', api.isAudio());
-    this.audio.textContent = t(api.isAudio() ? 'menu.audioOn' : 'menu.audioOff');
-    this.autostart.classList.toggle('on', api.isAutostart());
-    this.autostart.textContent = t(api.isAutostart() ? 'menu.autostartOn' : 'menu.autostartOff');
-    this.predict.classList.toggle('on', api.isPredict());
-    this.predict.textContent = t(api.isPredict() ? 'menu.predictOn' : 'menu.predictOff');
-    this.glass.classList.toggle('on', api.isGlass());
-    this.glass.textContent = t(api.isGlass() ? 'menu.glassOn' : 'menu.glassOff');
+    const toggle = (button, on, onKey, offKey) => {
+      button.classList.toggle('on', on);
+      button.textContent = t(on ? onKey : offKey);
+    };
+    toggle(this.audio, api.isAudio(), 'menu.audioOn', 'menu.audioOff');
+    toggle(this.recheck, api.isRecheck(), 'menu.recheckOn', 'menu.recheckOff');
+    toggle(this.predict, api.isPredict(), 'menu.predictOn', 'menu.predictOff');
+    toggle(this.zen, api.isZen(), 'menu.zenOn', 'menu.zenOff');
+    toggle(this.zenInfo, api.isZenInfo(), 'menu.zenInfoOn', 'menu.zenInfoOff');
+    toggle(this.autostart, api.isAutostart(), 'menu.autostartOn', 'menu.autostartOff');
+    toggle(this.glass, api.isGlass(), 'menu.glassOn', 'menu.glassOff');
+    this.top.classList.toggle('on', api.isTop());
+    this.zenInfo.classList.toggle('dim', !api.isZen()); // настройка имеет смысл в дзен-режиме
   }
 
   #refreshViz() {
@@ -113,6 +131,18 @@ export class Menu {
     this.vizButton.textContent = t('menu.viz', { mode: label });
     this.vizInfo.textContent = this.api.getVizInfo();
     this.vizSlider.value = this.api.getVizIntensity();
+  }
+
+  #refreshColors() {
+    const { api } = this;
+    const sync = (block, mode, colors, customMode, offKey) => {
+      block.mode.textContent = t(mode === customMode ? 'menu.modeCustom' : offKey);
+      block.mode.classList.toggle('on', mode === customMode);
+      block.swatches.hidden = mode !== customMode;
+      block.inputs.forEach((input, i) => (input.value = colors[i]));
+    };
+    sync(this.bgBlock, api.getBgMode(), api.getBgColors(), 'custom', 'menu.modeCover');
+    sync(this.eqBlock, api.getEqMode(), api.getEqColors(), 'custom', 'menu.modeSameAsBg');
   }
 
   /** Список песен, которые распознавание нашло по звуку: можно выбрать другую. */
@@ -152,8 +182,53 @@ export class Menu {
     this.timer = setTimeout(() => this.close(), AUTO_HIDE_MS);
   }
 
+  #showTab(id) {
+    const tab = TABS.includes(id) ? id : 'track';
+    this.tab = tab;
+    for (const [name, page] of Object.entries(this.pages)) page.hidden = name !== tab;
+    for (const [name, button] of Object.entries(this.tabButtons)) {
+      button.classList.toggle('on', name === tab);
+      button.setAttribute('aria-selected', String(name === tab));
+    }
+  }
+
+  /** Вкладки с разной высотой: после переключения меню остаётся в окне. */
+  #switchTab(id) {
+    this.#showTab(id);
+    this.api.setMenuTab(id);
+    if (this.anchor) this.#place(...this.anchor);
+  }
+
   #build() {
+    const tabBar = el('div', 'm-tabs');
+    tabBar.setAttribute('role', 'tablist');
+    this.tabButtons = {};
+    for (const id of TABS) {
+      const button = el('button', 'm-tab');
+      button.type = 'button';
+      button.setAttribute('role', 'tab');
+      button.textContent = t(`tab.${id}`);
+      button.addEventListener('click', () => this.#switchTab(id));
+      this.tabButtons[id] = button;
+      tabBar.append(button);
+    }
+
+    this.pages = {
+      track: this.#trackPage(),
+      look: this.#lookPage(),
+      app: this.#appPage(),
+    };
+    const scroller = el('div', 'menu-scroll');
+    scroller.append(tabBar, ...Object.values(this.pages));
+    this.root.replaceChildren(scroller);
+    this.api.decorate?.(this.root);
+    this.#showTab(this.api.getMenuTab());
+  }
+
+  /** Вкладка «Трек»: песня, текст, распознавание. */
+  #trackPage() {
     const { api } = this;
+    const page = el('div', 'm-page');
 
     this.cover = el('img', 'm-cover');
     this.cover.alt = '';
@@ -169,37 +244,76 @@ export class Menu {
     this.cands = el('div', 'm-cands');
     this.cands.hidden = true;
 
-    const fontMinus = pill('A−', 'small', () => api.fontDelta(-0.1));
-    const fontPlus = pill('A+', 'small', () => api.fontDelta(0.1));
-    const fontRow = row(t('menu.fontSize'), fontMinus, fontPlus);
-
+    const fontRow = row(
+      t('menu.fontSize'),
+      pill('A−', 'small', () => api.fontDelta(-0.1)),
+      pill('A+', 'small', () => api.fontDelta(0.1)),
+    );
     this.offsetValue = el('span', 'm-value');
-    const offsetMinus = pill('−', 'small', () => this.#shift(-100));
-    const offsetPlus = pill('+', 'small', () => this.#shift(100));
-    const offsetRow = row(t('menu.offset'), offsetMinus, this.offsetValue, offsetPlus);
+    const offsetRow = row(
+      t('menu.offset'),
+      pill('−', 'small', () => this.#shift(-100)),
+      this.offsetValue,
+      pill('+', 'small', () => this.#shift(100)),
+    );
 
-    this.soft = el('input');
-    this.soft.type = 'range';
-    this.soft.min = '0.7';
-    this.soft.max = '1.5';
-    this.soft.step = '0.05';
-    this.soft.addEventListener('input', () => api.setSoft(Number(this.soft.value)));
-    const softRow = row(t('menu.soft'), this.soft);
+    this.mxm = el('input', 'm-key');
+    this.mxm.type = 'password';
+    this.mxm.placeholder = t('menu.keyPlaceholder');
+    this.mxm.autocomplete = 'off';
+    this.mxm.spellcheck = false;
+    this.mxm.addEventListener('input', () => api.setMusixmatchKey(this.mxm.value.trim()));
+    this.mxm.addEventListener('change', () => api.commitMusixmatchKey());
+    const mxmRow = row('Musixmatch', this.mxm);
 
-    // Визуализатор: стиль (авто — по жанру), яркость.
+    this.audio = pill('', '', () => this.#toggle(api.toggleAudio));
+    this.recheck = pill('', 'wide', () => this.#toggle(api.toggleRecheck));
+    this.predict = pill('', 'wide', () => this.#toggle(api.togglePredict));
+
+    const pills = el('div', 'm-pills');
+    pills.append(
+      pill(t('menu.refetch'), 'wide', () => {
+        this.close();
+        api.refetch();
+      }),
+      this.audio,
+      pill(t('menu.recognizeNow'), '', () => {
+        this.close();
+        api.recognizeNow();
+      }),
+      this.recheck,
+      this.predict,
+      pill(t('menu.folder'), 'wide', () => {
+        this.close();
+        api.openLyricsDir();
+      }),
+    );
+    page.append(track, this.source, this.cands, fontRow, offsetRow, mxmRow, pills);
+    return page;
+  }
+
+  /** Вкладка «Вид»: дзен-режим, визуализатор, цвета, анимации. */
+  #lookPage() {
+    const { api } = this;
+    const page = el('div', 'm-page');
+
+    this.zen = pill('', 'wide', () => this.#toggle(api.toggleZen));
+    this.zenInfo = pill('', 'wide', () => this.#toggle(api.toggleZenInfo));
+
     this.vizButton = pill('', 'wide', () => {
       api.cycleViz();
       this.#refreshViz();
     });
     this.vizInfo = el('div', 'm-source');
-    this.vizSlider = el('input');
-    this.vizSlider.type = 'range';
-    this.vizSlider.min = '0.4';
-    this.vizSlider.max = '1.6';
-    this.vizSlider.step = '0.05';
-    this.vizSlider.addEventListener('input', () => api.setVizIntensity(Number(this.vizSlider.value)));
+    this.vizSlider = slider(0.4, 1.6, 0.05, (v) => api.setVizIntensity(v));
     const vizBlock = el('div', 'm-anim');
     vizBlock.append(this.vizButton, this.vizInfo, row(t('menu.brightness'), this.vizSlider));
+
+    this.soft = slider(0.7, 1.5, 0.05, (v) => api.setSoft(v));
+    const softRow = row(t('menu.soft'), this.soft);
+
+    this.bgBlock = this.#colorBlock(t('menu.bgLabel'), () => api.toggleBgMode(), (i, hex) => api.setBgColor(i, hex));
+    this.eqBlock = this.#colorBlock(t('menu.eqLabel'), () => api.toggleEqMode(), (i, hex) => api.setEqColor(i, hex));
 
     // Этапы анимации заставки можно отключать по отдельности.
     this.anim = {};
@@ -221,81 +335,75 @@ export class Menu {
     }
     animBlock.append(animLabel, animPills);
 
-    this.mxm = el('input', 'm-key');
-    this.mxm.type = 'password';
-    this.mxm.placeholder = t('menu.keyPlaceholder');
-    this.mxm.autocomplete = 'off';
-    this.mxm.spellcheck = false;
-    this.mxm.addEventListener('input', () => api.setMusixmatchKey(this.mxm.value.trim()));
-    this.mxm.addEventListener('change', () => api.commitMusixmatchKey());
-    const mxmRow = row('Musixmatch', this.mxm);
+    this.glass = pill('', 'wide', () => this.#toggle(api.toggleGlass));
 
-    const pills = el('div', 'm-pills');
-    this.audio = pill('', '', () => {
-      api.toggleAudio();
-      this.#refreshToggles();
+    page.append(
+      this.zen, this.zenInfo, vizBlock, softRow,
+      this.bgBlock.root, this.eqBlock.root, animBlock, this.glass,
+    );
+    return page;
+  }
+
+  /** Вкладка «Программа»: окно, язык, автозапуск, поддержка. */
+  #appPage() {
+    const { api } = this;
+    const page = el('div', 'm-page');
+
+    this.top = pill(t('menu.onTop'), '', () => {
+      api.toggleTop().then(() => this.top.classList.toggle('on', api.isTop()));
     });
-    this.autostart = pill('', 'wide', () => {
-      api.toggleAutostart();
-      this.#refreshToggles();
-    });
+    this.autostart = pill('', 'wide', () => this.#toggle(api.toggleAutostart));
     this.donate = pill(t('menu.donate'), 'wide donate', () => {
       this.close();
       api.openDonate();
     });
     this.donate.hidden = true;
-    this.predict = pill('', 'wide', () => {
-      api.togglePredict();
-      this.#refreshToggles();
-    });
-    this.glass = pill('', '', () => {
-      api.toggleGlass();
-      this.#refreshToggles();
-    });
-    this.top = pill(t('menu.onTop'), '', () => {
-      api.toggleTop().then(() => this.top.classList.toggle('on', api.isTop()));
-    });
-    const language = pill(t('menu.language', { name: nativeName() }), 'wide', () => {
-      this.close();
-      api.pickLanguage();
-    });
+
+    const pills = el('div', 'm-pills');
     pills.append(
-      this.donate,
       pill(t('menu.fullscreen'), '', () => {
         this.close();
         api.toggleFullscreen();
       }),
       this.top,
-      pill(t('menu.refetch'), 'wide', () => {
-        this.close();
-        api.refetch();
-      }),
-      this.audio,
-      pill(t('menu.recognizeNow'), '', () => {
-        this.close();
-        api.recognizeNow();
-      }),
-      this.predict,
       this.autostart,
-      pill(t('menu.folder'), 'wide', () => {
+      pill(t('menu.language', { name: nativeName() }), 'wide', () => {
         this.close();
-        api.openLyricsDir();
+        api.pickLanguage();
       }),
-      language,
-      this.glass,
+      this.donate,
       pill(t('menu.minimize'), '', () => {
         this.close();
         api.minimize();
       }),
       pill(t('menu.close'), 'danger', () => api.close()),
     );
+    page.append(pills);
+    return page;
+  }
 
-    const scroller = el('div', 'menu-scroll');
-    scroller.append(
-      track, this.source, this.cands, fontRow, offsetRow, softRow, vizBlock, animBlock, mxmRow, pills,
-    );
-    this.root.replaceChildren(scroller);
-    api.decorate?.(this.root);
+  /** Блок «заголовок + режим + три цвета»: цвета видны только в режиме «свои». */
+  #colorBlock(label, onToggleMode, onColor) {
+    const mode = pill('', 'small-wide', () => {
+      onToggleMode();
+      this.#refreshColors();
+    });
+    const swatches = el('div', 'm-swatches');
+    const inputs = [0, 1, 2].map((i) => {
+      const input = el('input', 'm-color');
+      input.type = 'color';
+      input.addEventListener('input', () => onColor(i, input.value));
+      swatches.append(input);
+      return input;
+    });
+    const root = el('div', 'm-anim');
+    root.append(row(label, mode), swatches);
+    return { root, mode, swatches, inputs };
+  }
+
+  #toggle(action) {
+    action();
+    this.#refreshToggles();
   }
 
   #shift(deltaMs) {
@@ -323,6 +431,16 @@ function pill(text, extraClass, onClick) {
   return b;
 }
 
+function slider(min, max, step, onInput) {
+  const input = el('input');
+  input.type = 'range';
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  input.addEventListener('input', () => onInput(Number(input.value)));
+  return input;
+}
+
 function row(label, ...controls) {
   const r = el('div', 'm-row');
   const ctrl = el('div', 'm-ctrl');
@@ -331,4 +449,3 @@ function row(label, ...controls) {
   r.firstChild.textContent = label;
   return r;
 }
-

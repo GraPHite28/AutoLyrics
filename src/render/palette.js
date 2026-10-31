@@ -124,3 +124,25 @@ export async function paletteFromImage(src) {
   const base = hslToRgb(tuned[0][0], Math.min(tuned[0][1], 0.4), 0.06);
   return { colors: tuned.map(([h, s, l]) => hslToRgb(h, s, l)), base };
 }
+
+/** '#rrggbb' → [r, g, b] 0..1. */
+export function hexToRgb(hex) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+
+/**
+ * Пять цветов из трёх выбранных пользователем: свои три, затем светлее и темнее первых двух —
+ * чтобы пятен хватило, а оттенки остались теми, что выбрал человек.
+ */
+export function expandColors(hexes) {
+  const base = hexes.map(hexToRgb);
+  const shade = ([r, g, b], k) => [r, g, b].map((v) => clamp(v + (k > 0 ? (1 - v) * k : v * k), 0, 1));
+  return [base[0], base[1], base[2], shade(base[0], 0.28), shade(base[1], -0.3)];
+}
+
+/** Палитра фона из трёх своих цветов (тёмная основа — затемнённый первый цвет). */
+export function paletteFromColors(hexes) {
+  const colors = expandColors(hexes);
+  return { colors, base: colors[0].map((v) => v * 0.07) };
+}

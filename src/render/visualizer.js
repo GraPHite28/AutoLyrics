@@ -343,6 +343,7 @@ export class Visualizer {
     this.lastFeed = 0;
     this.presence = 0;
     this.searching = false;
+    this.zen = false;
     this.calm = 0;
     this.s = {
       bands: new Float32Array(BANDS),
@@ -369,6 +370,11 @@ export class Visualizer {
 
   setIntensity(value) {
     this.intensity = value;
+  }
+
+  /** Дзен-режим: визуализатор — главное на экране, поэтому ярче и крупнее. */
+  setZen(on) {
+    this.zen = on;
   }
 
   /**
@@ -446,13 +452,14 @@ export class Visualizer {
     this.fade = Math.min(1, this.fade + dt / FADE_S);
     const colors = this.#colors();
     const t = now / 1000;
-    const visible = 0.3 + 0.7 * this.presence;
+    const visible = this.zen ? 0.6 + 0.4 * this.presence : 0.3 + 0.7 * this.presence;
+    const intensity = this.intensity * (this.zen ? 1.3 : 1);
 
     const drawStyle = (name, alpha) => {
       if (alpha <= 0.01) return;
       ctx.save();
       ctx.globalAlpha = alpha * visible;
-      this.styles[name].draw(ctx, w, h, this.s, t, dt, colors, this.intensity);
+      this.styles[name].draw(ctx, w, h, this.s, t, dt, colors, intensity);
       ctx.restore();
     };
     if (this.previous && this.fade < 1) drawStyle(this.previous, 1 - this.fade);

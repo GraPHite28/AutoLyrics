@@ -1,5 +1,5 @@
 import { Background } from './render/background.js';
-import { DEFAULT_PALETTE, paletteFromImage } from './render/palette.js';
+import { DEFAULT_PALETTE, expandColors, paletteFromColors, paletteFromImage } from './render/palette.js';
 import { settings, saveSettings } from './settings.js';
 import { LyricsView } from './ui/lyrics.js';
 import { Menu } from './ui/menu.js';
@@ -22,6 +22,19 @@ if (demo) {
   if (forced) settings.vizStyle = forced;
   // ?ob=1 — пройти первоначальную настройку заново; ?lang=de — язык интерфейса
   settings.onboarded = !demoParams.get('ob');
+  // для скриншотов: ?tab=look, ?zen=1, ?zeninfo=0, ?bg=ff7a18,af002d,319197, ?eq=ffffff,ffd24d,4dd2ff
+  if (demoParams.get('tab')) settings.menuTab = demoParams.get('tab');
+  if (demoParams.get('zen')) settings.zen = true;
+  if (demoParams.get('zeninfo') === '0') settings.zenInfo = false;
+  const hexes = (value) => value.split(',').map((c) => '#' + c);
+  if (demoParams.get('bg')) {
+    settings.bgMode = 'custom';
+    settings.bgColors = hexes(demoParams.get('bg'));
+  }
+  if (demoParams.get('eq')) {
+    settings.eqMode = 'custom';
+    settings.eqColors = hexes(demoParams.get('eq'));
+  }
   const lang = demoParams.get('lang');
   if (lang && isSupported(lang)) settings.language = lang;
 }
@@ -84,10 +97,22 @@ const listen = tauri ? tauri.event.listen : () => Promise.resolve(() => {});
 const win = tauri ? tauri.window.getCurrentWindow() : null;
 
 const background = new Background(document.getElementById('bg'));
-// Визуализатор берёт цвета у фона и «качает» фон в такт.
+
+// Палитра фона: из обложки или три своих цвета (настройка «Фон»).
+let coverPalette = DEFAULT_PALETTE;
+const effectivePalette = () =>
+  settings.bgMode === 'custom' ? paletteFromColors(settings.bgColors) : coverPalette;
+function setBackgroundPalette(palette) {
+  coverPalette = palette;
+  background.setPalette(effectivePalette());
+}
+
+// Визуализатор по умолчанию берёт цвета у фона (и «качает» фон в такт); можно задать свои.
+const eqColors = () =>
+  settings.eqMode === 'custom' ? expandColors(settings.eqColors) : background.current;
 const viz = new Visualizer(
   document.getElementById('viz'),
-  () => background.current,
+  eqColors,
   (s) => background.setEnergy(Math.min(1, s.bass * 0.7 + s.beatEnv * 0.6)),
 );
 viz.setIntensity(settings.vizIntensity);
@@ -245,7 +270,7 @@ function applyTrack(next) {
     lyrics.clear();
     stageEl.classList.remove('has-dock');
     splash.reset();
-    background.setPalette(DEFAULT_PALETTE);
+    setBackgroundPalette(DEFAULT_PALETTE);
     resetVizInfo(null, false);
     onboarding.onNoTrack();
     return;
@@ -259,15 +284,44 @@ function applyTrack(next) {
   clock.at = performance.now();
   lyrics.clear();
   stageEl.classList.remove('has-dock');
-  background.setPalette(DEFAULT_PALETTE);
+  setBackgroundPalette(DEFAULT_PALETTE);
   if (next.cover) applyCover(next.cover);
+  if (settings.zen) {
+    showZenInfo(next);
+    return;
+  }
   // заставка появляется с анимацией; текст ждёт её окончания, прежде чем «заехать» вверх
   loadLyrics(false, splash.showTrack(next));
 }
 
+/** Дзен-режим: текста нет; по желанию сверху остаются обложка, название и исполнитель. */
+function showZenInfo(current) {
+  fetchSeq++; // отменяет возможную загрузку текста
+  lyrics.clear();
+  stageEl.classList.remove('has-dock');
+  if (!settings.zenInfo) {
+    splash.reset();
+    return;
+  }
+  splash.showTrack(current).then(() => {
+    if (track === current && settings.zen && settings.zenInfo) splash.dock(true);
+  });
+}
+
+/** Включили или выключили дзен-режим: перестраиваем экран для текущего трека. */
+function applyZen() {
+  viz.setZen(settings.zen);
+  if (!track) {
+    if (settings.zen) splash.reset();
+    return;
+  }
+  if (settings.zen) showZenInfo(track);
+  else loadLyrics(false, splash.showTrack(track));
+}
+
 function applyCover(cover) {
   paletteFromImage(cover)
-    .then((p) => background.setPalette(p))
+    .then((p) => setBackgroundPalette(p))
     .catch(() => {});
 }
 
@@ -291,6 +345,7 @@ function applyPlayback(pb) {
  *                 показываем только после неё, чтобы анимации не наезжали друг на друга
  */
 async function loadLyrics(force = false, revealed = Promise.resolve()) {
+  if (settings.zen) return; // в дзен-режиме текст не нужен
   const seq = ++fetchSeq;
   const current = track;
   fetchedWithDuration = current.durationMs || 0;
@@ -447,17 +502,55 @@ const menu = new Menu(document.getElementById('menu'), {
     autostart = !autostart;
     invoke('set_autostart', { enabled: autostart }).catch(() => (autostart = !autostart));
   },
+  isRecheck: () => settings.autoRecheck,
+  toggleRecheck: () => {
+    settings.autoRecheck = !settings.autoRecheck;
+    invoke('set_auto_recheck', { enabled: settings.autoRecheck });
+    saveSettings();
+  },
+  isZen: () => settings.zen,
+  toggleZen: () => {
+    settings.zen = !settings.zen;
+    saveSettings();
+    applyZen();
+  },
+  isZenInfo: () => settings.zenInfo,
+  toggleZenInfo: () => {
+    settings.zenInfo = !settings.zenInfo;
+    saveSettings();
+    if (settings.zen && track) showZenInfo(track);
+  },
+  getBgMode: () => settings.bgMode,
+  toggleBgMode: () => {
+    settings.bgMode = settings.bgMode === 'custom' ? 'cover' : 'custom';
+    saveSettings();
+    background.setPalette(effectivePalette());
+  },
+  getBgColors: () => settings.bgColors,
+  setBgColor: (i, hex) => {
+    settings.bgColors[i] = hex;
+    saveSettings();
+    if (settings.bgMode === 'custom') background.setPalette(effectivePalette());
+  },
+  getEqMode: () => settings.eqMode,
+  toggleEqMode: () => {
+    settings.eqMode = settings.eqMode === 'custom' ? 'bg' : 'custom';
+    saveSettings();
+  },
+  getEqColors: () => settings.eqColors,
+  setEqColor: (i, hex) => {
+    settings.eqColors[i] = hex;
+    saveSettings();
+  },
+  getMenuTab: () => settings.menuTab,
+  setMenuTab: (id) => {
+    settings.menuTab = id;
+    saveSettings();
+  },
   isPredict: () => settings.predictNext,
   togglePredict: () => {
     settings.predictNext = !settings.predictNext;
     invoke('set_predict_next', { enabled: settings.predictNext });
-// Автозапуск живёт в системе (реестр), а не в настройках — спрашиваем, как есть на самом деле.
-let autostart = false;
-invoke('get_autostart').then((on) => (autostart = !!on)).catch(() => {});
-// Подписи в меню трея — на языке интерфейса.
-const syncTrayLabels = () => invoke('set_tray_labels', { show: t('tray.show'), quit: t('tray.quit') }).catch(() => {});
-syncTrayLabels();
-onLanguageChange(syncTrayLabels);
     saveSettings();
   },
   pickLanguage: () => picker.open(),
@@ -570,6 +663,11 @@ const RECOGNITION_KEYS = {
 };
 function onRecognition(state) {
   const key = RECOGNITION_KEYS[state];
+  if (settings.zen) {
+    viz.setSearching(false);
+    if (!track) splash.reset();
+    return;
+  }
   // пока трек ищется, визуализатор сглажен и размыт, как фон
   viz.setSearching(!track && !!key);
   if (track) return;
@@ -594,6 +692,9 @@ if (demo) {
 invoke('set_audio_recognition', { enabled: settings.audioRecognition });
 invoke('set_musixmatch_key', { key: settings.musixmatchKey });
 invoke('set_predict_next', { enabled: settings.predictNext });
+invoke('set_auto_recheck', { enabled: settings.autoRecheck });
+viz.setZen(settings.zen);
+if (settings.bgMode === 'custom') background.setPalette(effectivePalette());
 // Автозапуск живёт в системе (реестр), а не в настройках — спрашиваем, как есть на самом деле.
 let autostart = false;
 invoke('get_autostart').then((on) => (autostart = !!on)).catch(() => {});
@@ -624,7 +725,7 @@ async function demoInvoke(cmd) {
   }
   if (cmd === 'fetch_genre') return 'Hip-Hop/Rap';
   if (cmd === 'get_autostart') return false;
-  if (['set_audio_recognition', 'recognize_now', 'select_candidate', 'set_musixmatch_key', 'open_lyrics_dir', 'set_track_duration', 'set_predict_next', 'set_tray_labels', 'hide_window', 'set_autostart', 'open_support_link'].includes(cmd)) return null;
+  if (['set_audio_recognition', 'recognize_now', 'select_candidate', 'set_musixmatch_key', 'open_lyrics_dir', 'set_track_duration', 'set_predict_next', 'set_tray_labels', 'hide_window', 'set_autostart', 'open_support_link', 'set_auto_recheck'].includes(cmd)) return null;
   if (cmd === 'current_state') {
     return {
       track: demoOnboarding ? null : DEMO_TRACK,

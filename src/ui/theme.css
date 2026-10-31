@@ -905,3 +905,89 @@ body.glass-liquid .glass {
 .pill.donate {
   color: #ffd6e8;
 }
+/* ---------- Вкладки меню ---------- */
+
+.m-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.m-tab {
+  flex: 1;
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: 9px 6px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.m-tab:hover {
+  color: var(--text);
+}
+.m-tab.on {
+  background: rgba(255, 255, 255, 0.88);
+  color: #1b1822;
+}
+.m-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: page-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.m-page[hidden] {
+  display: none;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.pill.dim:not(.on) {
+  opacity: 0.55;
+}
+.pill.small-wide {
+  min-width: 108px;
+  padding: 7px 14px;
+}
+
+/* ---------- Свои цвета ---------- */
+
+.m-swatches {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  padding: 2px 0 4px;
+}
+.m-swatches[hidden] {
+  display: none;
+}
+.m-color {
+  appearance: none;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+.m-color:hover {
+  transform: scale(1.1);
+}
+.m-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.m-color::-webkit-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}

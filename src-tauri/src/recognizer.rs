@@ -52,7 +52,14 @@ const BACKOFF_S: [u64; 4] = [5, 12, 25, 45];
 /// Запас после расчётного конца трека: позиция по часам может чуть отставать.
 const END_GRACE_MS: f64 = 1500.0;
 /// Сколько перепроверок подряд без результата нужно, чтобы забыть текущий трек.
-const MISSES_TO_FORGET: u32 = 4;
+/// Если длительность трека неизвестна, забываем его после стольких перепроверок подряд без результата.
+/// Когда длительность известна, конец трека ловим по ней и по промахам трек не забываем: у каверов и
+/// ремиксов Shazam часто «не слышит» песню, хотя она всё ещё играет.
+const MISSES_TO_FORGET: u32 = 6;
+/// Через сколько после расчётного конца трека проверяем, не продолжается ли та же песня:
+/// к этому моменту новой записи хватает на распознавание (кавер/версия могут быть длиннее текста).
+const END_CHECK_DELAY: Duration = Duration::from_millis(4500);
+const END_CHECK_CLIP_S: f32 = 5.5;
 /// Расхождение позиции, после которого считаем, что трек перемотали.
 const SEEK_TOLERANCE_MS: f64 = 1500.0;
 /// `offset` в ответе Shazam — позиция начала нашего фрагмента в треке.
@@ -100,6 +107,9 @@ struct Commands {
 }
 
 static ENABLED: AtomicBool = AtomicBool::new(true);
+/// Автопроверка: песня перепроверяется сама (раз в 25 с и в конце трека). Выключено — после
+/// определения песню трогает только кнопка «Определить сейчас».
+static AUTO_RECHECK: AtomicBool = AtomicBool::new(true);
 static DURATION: Mutex<Option<(u64, u64)>> = Mutex::new(None);
 static COMMANDS: Mutex<Commands> = Mutex::new(Commands {
     force: false,
@@ -109,6 +119,11 @@ static VIEW: Mutex<View> = Mutex::new(View {
     items: Vec::new(),
     selected: 0,
 });
+
+#[tauri::command]
+pub fn set_auto_recheck(enabled: bool) {
+    AUTO_RECHECK.store(enabled, Ordering::Relaxed);
+}
 
 #[tauri::command]
 pub fn set_audio_recognition(enabled: bool) {
@@ -220,6 +235,13 @@ struct Recognizer {
     verify_at: Option<Instant>,
     /// На экране «заготовка» — предсказанный следующий трек; Shazam подтвердит или исправит.
     tentative: bool,
+    /// Идущая попытка — проверка на «конце трека»: та же песня продолжается или началась другая.
+    ending: bool,
+    /// Когда запустить такую проверку.
+    end_check_at: Option<Instant>,
+    /// Название песни, которую перепроверка нашла вместо текущей: переключаемся, только если
+    /// то же самое найдётся и со второго раза (одиночный «промах» Shazam не должен сбрасывать песню).
+    pending_switch: Option<String>,
     /// Когда нажали «Определить сейчас» (с этого момента в записи звук уже новый).
     forced_started: Instant,
 }
@@ -254,6 +276,9 @@ impl Recognizer {
             verifying: false,
             verify_at: None,
             tentative: false,
+            ending: false,
+            end_check_at: None,
+            pending_switch: None,
             forced_started: now,
         }
     }
@@ -337,7 +362,8 @@ impl Recognizer {
             };
             media_watcher::publish_playback(&self.app, &pb);
 
-            let ended = active.playing
+            let ended = AUTO_RECHECK.load(Ordering::Relaxed)
+                && active.playing
                 && active.duration_ms > 0
                 && active.pos(now) >= active.duration_ms as f64 + END_GRACE_MS;
             if silent_for >= DROP_AFTER {
@@ -358,6 +384,13 @@ impl Recognizer {
 
         if !audible {
             self.verify_at = None; // звук пропал — проверять нечем
+            self.end_check_at = None;
+        }
+        if self.end_check_at.is_some_and(|at| now >= at) && self.active.is_some() {
+            self.end_check_at = None;
+            self.ending = true;
+            self.spawn_attempt(END_CHECK_CLIP_S);
+            return;
         }
         if self.verify_at.is_some_and(|at| now >= at) && self.active.is_some() {
             self.verify_at = None;
@@ -383,7 +416,7 @@ impl Recognizer {
                 clip
             }
             Some(_) => {
-                if !(force || (playing && now >= self.next_check)) {
+                if !(force || (AUTO_RECHECK.load(Ordering::Relaxed) && playing && now >= self.next_check)) {
                     return;
                 }
                 RECHECK_CLIP_S
@@ -438,20 +471,25 @@ impl Recognizer {
         }
         let forced = std::mem::take(&mut self.forced_attempt);
         let verifying = std::mem::take(&mut self.verifying);
+        let ending = std::mem::take(&mut self.ending);
         let user_asked = forced || (verifying && !self.tentative);
         match outcome {
             Outcome::Match(found) => {
                 self.attempts = 0;
                 self.misses = 0;
                 self.next_check = now + RECHECK;
-                self.on_match(found, now, forced, verifying);
+                self.on_match(found, now, forced, verifying, ending);
             }
             Outcome::NoMatch => {
                 if user_asked {
                     self.notice("nomatch", "", "");
                 }
                 self.status("nomatch");
-                self.register_miss(now, true);
+                if ending {
+                    self.forget_after_end(now);
+                } else {
+                    self.register_miss(now, true);
+                }
             }
             Outcome::Failed(message) => {
                 eprintln!("[recognizer] {message}");
@@ -477,13 +515,14 @@ impl Recognizer {
             self.next_check = now + Duration::from_secs(12);
             // Несколько раз подряд ничего не нашли (тихий проигрыш или песня не из базы) —
             // скорее всего, пошёл другой трек.
-            if self.misses >= MISSES_TO_FORGET && !self.pinned {
+            let duration_known = self.active.as_ref().is_some_and(|a| a.duration_ms > 0);
+            if !duration_known && self.misses >= MISSES_TO_FORGET && !self.pinned {
                 self.reset(true);
             }
         }
     }
 
-    fn on_match(&mut self, found: Vec<Entry>, now: Instant, forced: bool, verifying: bool) {
+    fn on_match(&mut self, found: Vec<Entry>, now: Instant, forced: bool, verifying: bool, ending: bool) {
         let Some(best) = found.first().cloned() else { return };
 
         // Показана заготовка (предсказанный трек): Shazam её подтверждает или исправляет.
@@ -510,6 +549,9 @@ impl Recognizer {
         }
 
         let same_as_active = self.is_active_song(&best.cand);
+        if same_as_active {
+            self.pending_switch = None;
+        }
         let known = self.entries.iter().any(|e| e.cand.key == best.cand.key);
 
         if same_as_active || (self.pinned && known) {
@@ -537,6 +579,19 @@ impl Recognizer {
             return;
         }
 
+        // Одиночный «другой результат» при плановой перепроверке — чаще сбой распознавания
+        // (кавер, живая версия), чем смена песни: переключаемся, только если это повторится.
+        let immediate = forced || verifying || ending || was_tentative;
+        if !immediate && self.active.is_some() {
+            let title = matching::flat(&matching::normalize_title(&best.cand.title));
+            if self.pending_switch.as_deref() != Some(title.as_str()) {
+                self.pending_switch = Some(title);
+                self.next_check = now + Duration::from_secs(6); // быстро перепроверим
+                return;
+            }
+        }
+        self.pending_switch = None;
+
         // Новая песня: прежний список вариантов больше не актуален.
         self.entries.clear();
         self.pinned = false;
@@ -555,7 +610,10 @@ impl Recognizer {
     fn is_active_song(&self, cand: &Candidate) -> bool {
         let Some(active) = &self.active else { return false };
         active.key == cand.key
-            || self.entries.get(self.selected).is_some_and(|e| same_song(&e.cand, cand))
+            || self
+                .entries
+                .get(self.selected)
+                .is_some_and(|e| same_song(&e.cand, cand) || same_title(&e.cand, cand))
     }
 
     fn merge(&mut self, entry: Entry) {
@@ -608,6 +666,17 @@ impl Recognizer {
             self.start_predicted(next, now);
             return;
         }
+        // Заготовки нет. Песню на экране пока не трогаем: длительность известна приблизительно
+        // (у каверов и других версий трек бывает длиннее). Дождёмся нового звука и проверим.
+        if let Some(active) = &mut self.active {
+            active.duration_ms = 0; // больше не срабатывать
+        }
+        self.end_check_at = Some(now + END_CHECK_DELAY);
+    }
+
+    /// Проверка на «конце трека» не нашла песню: скорее всего, пошёл неизвестный трек —
+    /// забываем прежний и слушаем заново.
+    fn forget_after_end(&mut self, now: Instant) {
         self.reset(true);
         // считаем «новым» звук, который идёт с этого момента
         self.audible_since = Some(now);
@@ -656,6 +725,8 @@ impl Recognizer {
         self.selected = 0;
         self.pinned = false;
         self.verify_at = None;
+        self.end_check_at = None;
+        self.pending_switch = None;
         self.tentative = false;
         self.attempts = 0;
         self.misses = 0;
@@ -693,6 +764,14 @@ impl Recognizer {
 fn same_song(a: &Candidate, b: &Candidate) -> bool {
     let q = Query::new(&a.title, &a.artist, "", 0);
     matching::score(&q, &b.title, &b.artist, None).is_some()
+}
+
+/// Названия совпали (без скобок, eat., регистра), артисты — нет: это кавер или другая запись той
+/// же песни, а значит, текст тот же. Совсем короткие названия («Intro», «Home») так не склеиваем.
+fn same_title(a: &Candidate, b: &Candidate) -> bool {
+    let title = |c: &Candidate| matching::flat(&matching::normalize_title(&c.title));
+    let (ta, tb) = (title(a), title(b));
+    ta.chars().count() >= 5 && ta == tb
 }
 
 fn take_commands() -> (bool, Option<usize>) {
@@ -823,6 +902,17 @@ mod tests {
         let album = cand("101", "Banger (feat. OISEAU & PAPILLON)", "Miyagi & Эндшпиль");
         let single = cand("202", "Banger", "Miyagi, Эндшпиль");
         assert!(same_song(&album, &single));
+    }
+
+    #[test]
+    fn a_cover_with_the_same_title_is_the_same_text() {
+        let original = cand("1", "Poison (From Hazbin Hotel Original Soundtrack)", "Blake Roman, Sam Haft & Andrew Underberg");
+        let cover = cand("2", "Poison (RUS cover) Hazbin Hotel", "HaruWei");
+        let same_title_other_artist = cand("3", "Poison", "Some Cover Band");
+        assert!(!same_song(&original, &same_title_other_artist));
+        assert!(same_title(&cand("4", "Poison", "A"), &same_title_other_artist));
+        assert!(!same_title(&original, &cover), "название с припиской про кавер — отдельная запись");
+        assert!(!same_title(&cand("5", "Home", "A"), &cand("6", "Home", "B")), "короткие названия не склеиваем");
     }
 
     #[test]

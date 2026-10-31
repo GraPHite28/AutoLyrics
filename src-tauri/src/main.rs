@@ -46,6 +46,7 @@ fn main() {
             lyrics::set_musixmatch_key,
             lyrics::open_lyrics_dir,
             recognizer::set_audio_recognition,
+            recognizer::set_auto_recheck,
             recognizer::recognize_now,
             recognizer::select_candidate,
             recognizer::set_track_duration,
