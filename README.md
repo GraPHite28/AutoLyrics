@@ -25,6 +25,8 @@ UI languages: English, Русский, Deutsch, Français, Polski, 中文, 日�
 - **Soft, animated interface:** search → found track → lyrics intro animations, optional
   *Liquid Glass* buttons, tray icon, autostart.
 - **Seven languages**, picked on first run by detecting the language of your favourite song.
+- **Zen mode:** just the visualizer, no lyrics — optionally with the album art, title and artist on top.
+- **Your own colours** for the background and the equalizer, and a menu split into *Track / Look / App* tabs.
 
 <table>
   <tr>
@@ -79,7 +81,8 @@ the menu.
   (from Shazam or iTunes); if the genre is unknown it is estimated from the sound itself. While a track is
   being searched for, the visualizer is smoothed and blurred like the background.
 - **End of track.** When a song ends, the app starts identifying the next one right away (important for
-  gapless transitions). Optional "guess the next album track" (off by default — it may briefly show the wrong
+  gapless transitions). The periodic re-check of the current track can be switched off ("Auto-check track").
+  Optional "guess the next album track" (off by default — it may briefly show the wrong
   song).
 
 ## Controls
