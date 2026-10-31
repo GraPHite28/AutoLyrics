@@ -1,0 +1,907 @@
+:root {
+  --ly-scale: 1;
+  --ly-size: calc(clamp(24px, 4.4vw, 52px) * var(--ly-scale));
+  --glass: rgba(255, 255, 255, 0.14);
+  --glass-hover: rgba(255, 255, 255, 0.24);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --text: #fff;
+  --text-dim: rgba(255, 255, 255, 0.65);
+  font-family: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', 'Yu Gothic UI', 'Meiryo UI',
+    system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0f0e12;
+  color: var(--text);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body.idle {
+  cursor: none;
+}
+
+#bg,
+#viz {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---------- Текст ---------- */
+
+#stage {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#lyrics {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+}
+
+.lines {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  padding: 0 9vw;
+  text-align: center;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.line {
+  margin: 0 auto;
+  padding: 0.28em 0;
+  max-width: 1100px;
+  font-size: var(--ly-size);
+  font-weight: 800;
+  line-height: 1.16;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 28px rgba(0, 0, 0, 0.28);
+  opacity: 0.2;
+  transform: scale(0.82);
+  filter: blur(2px);
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), filter 0.5s ease;
+}
+
+.line.gap {
+  letter-spacing: 0.3em;
+}
+
+.line[data-d='0'] {
+  opacity: 1;
+  transform: scale(1);
+  filter: none;
+}
+.line[data-d='1'] {
+  opacity: 0.55;
+  transform: scale(0.88);
+  filter: blur(0.4px);
+}
+.line[data-d='2'] {
+  opacity: 0.34;
+  transform: scale(0.84);
+  filter: blur(1.2px);
+}
+
+/* Обычный (несинхронный) текст — без «подсветки», читается целиком */
+.approx .line {
+  opacity: 0.75;
+  transform: scale(0.9);
+  filter: none;
+}
+.approx .line[data-d='0'] {
+  opacity: 1;
+  transform: scale(0.96);
+}
+
+/* Когда заставка уехала вверх, текст занимает остальное место */
+#stage.has-dock #lyrics {
+  top: 104px;
+}
+/* Только прозрачность: анимация transform перебивала плавную прокрутку строк. */
+.lines {
+  animation: lines-in 0.8s ease backwards;
+}
+@keyframes lines-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.m-source {
+  margin: -4px 0 0;
+  padding: 0 14px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.m-source[hidden] {
+  display: none;
+}
+
+/* ---------- Заставка: поиск → трек → текст ---------- */
+
+.splash {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sp-stack {
+  opacity: 0;
+  transform-origin: center;
+  transition: transform 0.95s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.6s ease;
+}
+.splash.visible .sp-stack {
+  opacity: 1;
+}
+/* нашёлся текст — заставка уезжает по центру наверх и остаётся приглушённой */
+.splash.docked .sp-stack {
+  opacity: 0.6;
+  transform: translateY(calc(-50vh + 62px)) scale(0.6);
+}
+.splash.faded .sp-stack {
+  opacity: 0;
+  transform: scale(0.96);
+}
+.splash.leaving .sp-stack {
+  opacity: 0 !important;
+  transition-duration: 0.2s;
+}
+.splash.instant,
+.splash.instant * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.sp-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 190px;
+  min-width: 190px;
+}
+.sp-stage > .sp-search,
+.sp-stage > .sp-track {
+  grid-area: 1 / 1;
+}
+
+/* --- поиск --- */
+.sp-search {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.sp-search.on {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.6s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sp-search i,
+.sp-disc {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+}
+.sp-search i {
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  opacity: 0;
+}
+.sp-search.on i {
+  animation: sonar 2.9s ease-out infinite;
+}
+.sp-search.on i:nth-child(2) {
+  animation-delay: 0.95s;
+}
+.sp-search.on i:nth-child(3) {
+  animation-delay: 1.9s;
+}
+@keyframes sonar {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+.sp-disc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.sp-search.on .sp-disc {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+.sp-disc b {
+  width: 5px;
+  height: 14px;
+  border-radius: 3px;
+  background: #fff;
+}
+.sp-search.on .sp-disc b {
+  animation: eq 1s ease-in-out infinite;
+}
+.sp-disc b:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.sp-disc b:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.sp-disc b:nth-child(4) {
+  animation-delay: 0.6s;
+}
+@keyframes eq {
+  0%,
+  100% {
+    height: 12px;
+  }
+  50% {
+    height: 34px;
+  }
+}
+@keyframes breathe {
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+/* --- найденный трек --- */
+.sp-track {
+  display: flex;
+  align-items: center;
+}
+.sp-cover {
+  flex: none;
+  position: relative;
+  width: 168px;
+  height: 168px;
+  border-radius: 26px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+  transform: scale(0);
+  transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.sp-track.on .sp-cover {
+  transform: scale(1);
+}
+.sp-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.sp-cover img.loaded {
+  opacity: 1;
+}
+.sp-text {
+  max-width: 0;
+  overflow: hidden;
+  transition: max-width 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.4s;
+}
+.sp-track.on .sp-text {
+  max-width: min(48vw, 560px);
+}
+.sp-text-inner {
+  width: max-content;
+  max-width: min(48vw, 560px);
+  padding: 8px 4px 8px 28px;
+  opacity: 0;
+  transform: translateX(-42px);
+  transition: opacity 0.5s ease 0.5s, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.45s;
+}
+.sp-track.on .sp-text-inner {
+  opacity: 1;
+  transform: none;
+}
+.sp-title {
+  font-size: clamp(24px, 3.2vw, 42px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  text-shadow: 0 2px 28px rgba(0, 0, 0, 0.28);
+}
+.sp-artist {
+  margin-top: 6px;
+  font-size: clamp(15px, 1.7vw, 22px);
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+/* --- подпись под заставкой --- */
+.sp-note {
+  position: absolute;
+  top: calc(100% + 26px);
+  left: 50%;
+  translate: -50% 0;
+  padding: 0.5em 1.2em;
+  border-radius: 999px;
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+.sp-note[hidden] {
+  display: none;
+}
+.sp-note.show {
+  animation: note-show 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sp-note.swap {
+  animation: note-swap 0.35s ease both;
+}
+@keyframes note-show {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+@keyframes note-swap {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+
+/* ---------- Всплывающая подпись ---------- */
+
+#toast {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: 28px;
+  max-width: min(90vw, 560px);
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: rgba(30, 28, 38, 0.45);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#toast.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
+}
+
+/* ---------- Меню по ПКМ ---------- */
+
+/* Размытие панели — на подложке-псевдоэлементе, а не на самой панели: иначе панель
+   становится «корнем фона», и кнопки внутри не видят, что за ней (нет Liquid Glass). */
+#menu {
+  position: fixed;
+  z-index: 10;
+  width: 300px;
+  border-radius: 28px;
+  transform-origin: top left;
+  transition: opacity 0.2s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#menu::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(30, 28, 38, 0.38);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(32px) saturate(1.5);
+  -webkit-backdrop-filter: blur(32px) saturate(1.5);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+}
+.menu-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  border-radius: 28px;
+}
+
+#menu.hidden {
+  opacity: 0;
+  transform: scale(0.92);
+  pointer-events: none;
+}
+
+.m-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 999px;
+  background: var(--glass);
+}
+.m-cover {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: linear-gradient(135deg, #e8b90c, #b01ce0, #2b2bd6);
+}
+.m-meta {
+  min-width: 0;
+}
+.m-title,
+.m-artist {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.m-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.m-artist {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.m-cands {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.m-cands[hidden] {
+  display: none;
+}
+.m-label {
+  padding: 2px 14px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.cand {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.cand:hover {
+  background: var(--glass-hover);
+}
+.cand.on {
+  background: rgba(255, 255, 255, 0.85);
+  color: #1b1822;
+}
+.cand.on .m-artist {
+  color: rgba(27, 24, 34, 0.65);
+}
+.cand-cover {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: linear-gradient(135deg, #e8b90c, #b01ce0, #2b2bd6);
+}
+
+.m-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 6px 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.m-row .m-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.m-value {
+  min-width: 52px;
+  text-align: center;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pill {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.pill:hover {
+  background: var(--glass-hover);
+}
+.pill:active {
+  transform: scale(0.96);
+}
+.pill.small {
+  min-width: 38px;
+  padding: 7px 12px;
+}
+.pill.on {
+  background: rgba(255, 255, 255, 0.85);
+  color: #1b1822;
+}
+.pill.danger:hover {
+  background: rgba(255, 90, 110, 0.5);
+}
+
+.m-pills {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.m-pills .wide {
+  grid-column: 1 / -1;
+}
+
+.m-anim {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.m-pills3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.m-pills3 .pill {
+  padding: 8px 6px;
+}
+
+.m-key {
+  width: 140px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  outline: none;
+  background: var(--glass);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.m-key::placeholder {
+  color: var(--text-dim);
+}
+.m-key:focus {
+  background: var(--glass-hover);
+}
+
+input[type='range'] {
+  width: 120px;
+  height: 6px;
+  appearance: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  outline: none;
+}
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- Первый запуск и выбор языка ---------- */
+
+.cycle {
+  transition: opacity 0.38s ease, transform 0.38s ease, filter 0.38s ease;
+}
+.cycle.out {
+  opacity: 0;
+  transform: translateY(10px);
+  filter: blur(6px);
+}
+
+#onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8vw 96px;
+  text-align: center;
+  background: rgba(8, 6, 14, 0.42);
+  backdrop-filter: blur(22px) saturate(1.3);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.75s ease;
+}
+#onboarding.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.ob-prompt {
+  max-width: 920px;
+  min-height: 2.5em;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-size: clamp(26px, 4.2vw, 52px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  text-shadow: 0 2px 28px rgba(0, 0, 0, 0.3);
+}
+.ob-stage {
+  position: relative;
+  width: min(90vw, 760px);
+  height: 270px;
+}
+.ob-hint {
+  max-width: 660px;
+  min-height: 2.9em;
+  font-size: clamp(14px, 1.7vw, 19px);
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.ob-lang {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 24px;
+  font-size: 15px;
+  translate: -50% 0;
+  transition: opacity 0.5s ease, translate 0.5s ease, background 0.15s ease;
+}
+.ob-lang.gone {
+  opacity: 0;
+  translate: -50% 16px;
+  pointer-events: none;
+}
+
+#lang-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  padding: 0 6vw;
+  background: rgba(8, 6, 14, 0.55);
+  backdrop-filter: blur(26px) saturate(1.3);
+  -webkit-backdrop-filter: blur(26px) saturate(1.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+#lang-picker.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.lp-title {
+  min-height: 1.3em;
+  font-size: clamp(22px, 3vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+.lp-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  max-width: 780px;
+}
+.lp-lang {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: 16px 30px;
+  border-radius: 999px;
+  color: var(--text);
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease;
+}
+.lp-lang:hover {
+  transform: scale(1.07);
+}
+.lp-lang:active {
+  transform: scale(0.97);
+}
+.lp-lang.current {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 2px;
+}
+#lang-picker.open .lp-lang {
+  animation: lp-pop 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 65ms + 120ms);
+}
+@keyframes lp-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5) translateY(22px);
+  }
+}
+.lp-back[hidden] {
+  display: none;
+}
+
+/* ---------- Визуализатор при поиске трека: сглажен и размыт, как фон ---------- */
+
+#viz {
+  transition: filter 0.9s ease, opacity 0.9s ease;
+}
+#viz.searching {
+  filter: blur(18px) saturate(1.15);
+  opacity: 0.85;
+}
+
+/* ---------- Стекло: обычное и Liquid Glass ---------- */
+
+.glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07));
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.55),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 10px 28px rgba(0, 0, 0, 0.2);
+}
+/* с преломлением фон за кнопкой виден яснее — подложку делаем прозрачнее */
+body.glass-liquid .glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.03));
+}
+.pill.glass:hover,
+.cand.glass:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+}
+.pill.on.glass,
+.cand.on.glass {
+  background: rgba(255, 255, 255, 0.86);
+}
+/* ---------- Окно «Поддержать проект» ---------- */
+
+#donate-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 6, 14, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+#donate-dialog.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.dlg-card {
+  position: relative;
+  width: min(560px, 100%);
+  border-radius: 30px;
+  transform: scale(0.92) translateY(14px);
+  transition: transform 0.5s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+#donate-dialog.open .dlg-card {
+  transform: none;
+}
+/* размытие — на подложке, чтобы кнопки внутри видели фон (Liquid Glass) */
+.dlg-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(30, 28, 38, 0.5);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(32px) saturate(1.5);
+  -webkit-backdrop-filter: blur(32px) saturate(1.5);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+}
+.dlg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px 28px 24px;
+  text-align: center;
+}
+.dlg-title {
+  font-size: 22px;
+  font-weight: 800;
+}
+.dlg-text {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.dlg-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.dlg-buttons .pill {
+  padding: 11px 18px;
+}
+.dlg-buttons .pill.primary {
+  background: rgba(255, 255, 255, 0.86);
+  color: #1b1822;
+}
+.pill[hidden] {
+  display: none;
+}
+.pill.donate {
+  color: #ffd6e8;
+}

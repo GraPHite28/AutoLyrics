@@ -1,0 +1,98 @@
+/**
+ * Все строки интерфейса на семи языках: ru, en, de, fr, pl, zh, ja.
+ * Подстановки — `{имя}`. Если перевода нет, берётся английский.
+ */
+
+const s = (ru, en, de, fr, pl, zh, ja) => ({ ru, en, de, fr, pl, zh, ja });
+
+export const STRINGS = {
+  /* ---- меню ---- */
+  'menu.noTrack': s('Ничего не играет', 'Nothing is playing', 'Es läuft nichts', 'Aucune lecture en cours', 'Nic nie gra', '没有正在播放的音乐', '再生中の曲はありません'),
+  'menu.listening': s('Слушаю звук на ПК…', 'Listening to your PC’s audio…', 'Höre den PC-Ton ab…', 'J’écoute le son du PC…', 'Słucham dźwięku z komputera…', '正在聆听电脑声音…', 'PCの音を聞いています…'),
+  'menu.startMusic': s('Запустите музыку на ПК', 'Start some music on your PC', 'Starte Musik auf deinem PC', 'Lancez de la musique sur votre PC', 'Włącz muzykę na komputerze', '请在电脑上播放音乐', 'PCで音楽を再生してください'),
+  'menu.lyricsSource': s('Текст: {source}', 'Lyrics: {source}', 'Songtext: {source}', 'Paroles : {source}', 'Tekst: {source}', '歌词：{source}', '歌詞：{source}'),
+  'origin.folder': s('из папки', 'from folder', 'aus Ordner', 'du dossier', 'z folderu', '来自文件夹', 'フォルダーから'),
+  'origin.file': s('Локальный файл', 'Local file', 'Lokale Datei', 'Fichier local', 'Plik lokalny', '本地文件', 'ローカルファイル'),
+  'origin.partial': s('часть текста', 'partial lyrics', 'Teil des Textes', 'paroles partielles', 'część tekstu', '部分歌词', '歌詞の一部'),
+  'unit.sec': s('с', 's', 's', 's', 's', '秒', '秒'),
+  'menu.candidates': s('Найденные варианты', 'Found matches', 'Gefundene Treffer', 'Résultats trouvés', 'Znalezione dopasowania', '识别结果', '見つかった候補'),
+  'menu.fontSize': s('Размер текста', 'Text size', 'Textgröße', 'Taille du texte', 'Rozmiar tekstu', '文字大小', '文字サイズ'),
+  'menu.offset': s('Сдвиг текста', 'Lyrics offset', 'Text-Versatz', 'Décalage des paroles', 'Przesunięcie tekstu', '歌词偏移', '歌詞のずれ'),
+  'menu.soft': s('Мягкость фона', 'Background softness', 'Weichheit des Hintergrunds', 'Douceur du fond', 'Miękkość tła', '背景柔和度', '背景のやわらかさ'),
+  'menu.viz': s('Визуализатор: {mode}', 'Visualizer: {mode}', 'Visualizer: {mode}', 'Visualiseur : {mode}', 'Wizualizacja: {mode}', '可视化：{mode}', 'ビジュアライザー：{mode}'),
+  'menu.vizAuto': s('Авто (по жанру)', 'Auto (by genre)', 'Auto (nach Genre)', 'Auto (selon le genre)', 'Auto (wg gatunku)', '自动（按曲风）', '自動（ジャンル別）'),
+  'menu.vizOff': s('Выкл', 'Off', 'Aus', 'Désactivé', 'Wył.', '关闭', 'オフ'),
+  'menu.vizOffLong': s('Визуализатор выключен', 'Visualizer is off', 'Visualizer ist aus', 'Visualiseur désactivé', 'Wizualizacja wyłączona', '可视化已关闭', 'ビジュアライザーはオフです'),
+  'menu.styleLine': s('Стиль: {style}', 'Style: {style}', 'Stil: {style}', 'Style : {style}', 'Styl: {style}', '风格：{style}', 'スタイル：{style}'),
+  'menu.styleGenre': s('Стиль: {style} · жанр «{genre}»', 'Style: {style} · genre “{genre}”', 'Stil: {style} · Genre „{genre}“', 'Style : {style} · genre « {genre} »', 'Styl: {style} · gatunek „{genre}”', '风格：{style} · 曲风“{genre}”', 'スタイル：{style} · ジャンル「{genre}」'),
+  'menu.styleAudio': s('Стиль: {style} · по звуку', 'Style: {style} · from the sound', 'Stil: {style} · nach Klang', 'Style : {style} · d’après le son', 'Styl: {style} · na podstawie dźwięku', '风格：{style} · 根据声音判断', 'スタイル：{style} · 音から判定'),
+  'menu.brightness': s('Яркость', 'Brightness', 'Helligkeit', 'Luminosité', 'Jasność', '亮度', '明るさ'),
+  'menu.anim': s('Анимации', 'Animations', 'Animationen', 'Animations', 'Animacje', '动画', 'アニメーション'),
+  'menu.animSearch': s('Поиск', 'Search', 'Suche', 'Recherche', 'Wyszukiwanie', '搜索', '検索'),
+  'menu.animTrack': s('Трек', 'Track', 'Titel', 'Titre', 'Utwór', '歌曲', '曲'),
+  'menu.animDock': s('Заставка', 'Title card', 'Titelkarte', 'Carte titre', 'Karta tytułowa', '标题卡', 'タイトルカード'),
+  'menu.keyPlaceholder': s('ключ API', 'API key', 'API-Schlüssel', 'clé API', 'klucz API', 'API 密钥', 'APIキー'),
+  'menu.fullscreen': s('Весь экран', 'Fullscreen', 'Vollbild', 'Plein écran', 'Pełny ekran', '全屏', '全画面'),
+  'menu.onTop': s('Поверх окон', 'Always on top', 'Immer oben', 'Toujours au premier plan', 'Zawsze na wierzchu', '置顶', '最前面'),
+  'menu.refetch': s('Искать текст заново', 'Search lyrics again', 'Songtext neu suchen', 'Chercher à nouveau les paroles', 'Szukaj tekstu ponownie', '重新搜索歌词', '歌詞を再検索'),
+  'menu.audioOn': s('По звуку: вкл', 'By sound: on', 'Per Klang: an', 'Par le son : activé', 'Po dźwięku: wł.', '声音识别：开', '音で認識：オン'),
+  'menu.audioOff': s('По звуку: выкл', 'By sound: off', 'Per Klang: aus', 'Par le son : désactivé', 'Po dźwięku: wył.', '声音识别：关', '音で認識：オフ'),
+  'menu.predictOn': s('Угадывать следующий: вкл', 'Guess next track: on', 'Nächsten Titel erraten: an', 'Deviner le titre suivant : activé', 'Zgaduj następny utwór: wł.', '预测下一首：开', '次の曲を予測：オン'),
+  'menu.predictOff': s('Угадывать следующий: выкл', 'Guess next track: off', 'Nächsten Titel erraten: aus', 'Deviner le titre suivant : désactivé', 'Zgaduj następny utwór: wył.', '预测下一首：关', '次の曲を予測：オフ'),
+  'menu.recognizeNow': s('Определить сейчас', 'Identify now', 'Jetzt erkennen', 'Identifier maintenant', 'Rozpoznaj teraz', '立即识别', '今すぐ認識'),
+  'menu.folder': s('Папка с текстами', 'Lyrics folder', 'Songtext-Ordner', 'Dossier des paroles', 'Folder z tekstami', '歌词文件夹', '歌詞フォルダー'),
+  'menu.minimize': s('В трей', 'Minimize to tray', 'In den Infobereich', 'Réduire dans la zone de notification', 'Zwiń do zasobnika', '最小化到托盘', 'トレイに最小化'),
+  'menu.donate': s('♥ Поддержать проект', '♥ Support the project', '♥ Projekt unterstützen', '♥ Soutenir le projet', '♥ Wesprzyj projekt', '♥ 支持项目', '♥ プロジェクトを支援'),
+  'donate.text': s('Пожертвование добровольное и ничего не даст взамен: программа остаётся полностью бесплатной.', 'A donation is voluntary and gives nothing in return — the app stays completely free.', 'Eine Spende ist freiwillig und bringt keine Gegenleistung – die App bleibt komplett kostenlos.', 'Un don est volontaire et n’offre aucune contrepartie : l’application reste entièrement gratuite.', 'Darowizna jest dobrowolna i niczego nie daje w zamian — aplikacja pozostaje w pełni darmowa.', '捐赠完全自愿，不会获得任何回报——应用将始终完全免费。', '寄付は任意で、見返りはありません。アプリはこれからも完全に無料です。'),
+  'donate.later': s('Возможно позже', 'Maybe later', 'Vielleicht später', 'Peut-être plus tard', 'Może później', '以后再说', 'また今度'),
+  'donate.never': s('Не показывать больше', 'Don’t show again', 'Nicht mehr anzeigen', 'Ne plus afficher', 'Nie pokazuj więcej', '不再显示', '今後表示しない'),
+  'donate.open': s('Открыть ссылку', 'Open the link', 'Link öffnen', 'Ouvrir le lien', 'Otwórz link', '打开链接', 'リンクを開く'),
+  'donate.confirmText': s('Кнопки пожертвования больше не будет в приложении. Подтвердить?', 'The donation button will no longer appear in the app. Confirm?', 'Die Spenden-Schaltfläche erscheint nicht mehr in der App. Bestätigen?', 'Le bouton de don n’apparaîtra plus dans l’application. Confirmer ?', 'Przycisk darowizny nie będzie już pokazywany w aplikacji. Potwierdzić?', '应用中将不再显示捐赠按钮。确认吗？', '寄付ボタンはアプリに表示されなくなります。よろしいですか？'),
+  'donate.confirm': s('Подтвердить', 'Confirm', 'Bestätigen', 'Confirmer', 'Potwierdź', '确认', '確認'),
+  'menu.autostartOn': s('Автозапуск с Windows: вкл', 'Start with Windows: on', 'Mit Windows starten: an', 'Lancer avec Windows : activé', 'Uruchamiaj z Windows: wł.', '随 Windows 启动：开', 'Windows と同時に起動：オン'),
+  'menu.autostartOff': s('Автозапуск с Windows: выкл', 'Start with Windows: off', 'Mit Windows starten: aus', 'Lancer avec Windows : désactivé', 'Uruchamiaj z Windows: wył.', '随 Windows 启动：关', 'Windows と同時に起動：オフ'),
+  'tray.show': s('Показать AutoLyrics', 'Show AutoLyrics', 'AutoLyrics anzeigen', 'Afficher AutoLyrics', 'Pokaż AutoLyrics', '显示 AutoLyrics', 'AutoLyrics を表示'),
+  'tray.quit': s('Выйти', 'Quit', 'Beenden', 'Quitter', 'Zamknij', '退出', '終了'),
+  'menu.close': s('Закрыть', 'Close', 'Schließen', 'Fermer', 'Zamknij', '关闭', '閉じる'),
+  'menu.language': s('Язык: {name}', 'Language: {name}', 'Sprache: {name}', 'Langue : {name}', 'Język: {name}', '语言：{name}', '言語：{name}'),
+  'menu.glassOn': s('Liquid Glass: вкл', 'Liquid Glass: on', 'Liquid Glass: an', 'Liquid Glass : activé', 'Liquid Glass: wł.', '液态玻璃：开', 'Liquid Glass：オン'),
+  'menu.glassOff': s('Liquid Glass: выкл', 'Liquid Glass: off', 'Liquid Glass: aus', 'Liquid Glass : désactivé', 'Liquid Glass: wył.', '液态玻璃：关', 'Liquid Glass：オフ'),
+
+  /* ---- стили визуализатора ---- */
+  'style.electronic': s('Электроника', 'Electronic', 'Elektro', 'Électro', 'Elektronika', '电子', 'エレクトロ'),
+  'style.hiphop': s('Хип-хоп', 'Hip-hop', 'Hip-Hop', 'Hip-hop', 'Hip-hop', '嘻哈', 'ヒップホップ'),
+  'style.rock': s('Рок', 'Rock', 'Rock', 'Rock', 'Rock', '摇滚', 'ロック'),
+  'style.pop': s('Поп', 'Pop', 'Pop', 'Pop', 'Pop', '流行', 'ポップ'),
+  'style.chill': s('Спокойный', 'Chill', 'Entspannt', 'Détente', 'Spokojny', '舒缓', 'チル'),
+  'style.classical': s('Классика / джаз', 'Classical / jazz', 'Klassik / Jazz', 'Classique / jazz', 'Klasyka / jazz', '古典 / 爵士', 'クラシック / ジャズ'),
+  'style.default': s('Мягкие блобы', 'Soft blobs', 'Weiche Blobs', 'Blobs doux', 'Miękkie bloby', '柔和光团', 'やわらかブロブ'),
+
+  /* ---- подписи на экране ---- */
+  'note.searching': s('Ищем текст…', 'Looking for lyrics…', 'Suche nach dem Songtext…', 'Recherche des paroles…', 'Szukam tekstu…', '正在搜索歌词…', '歌詞を検索中…'),
+  'note.notFound': s('Текст не найден', 'Lyrics not found', 'Kein Songtext gefunden', 'Paroles introuvables', 'Nie znaleziono tekstu', '未找到歌词', '歌詞が見つかりません'),
+  'note.instrumental': s('♪ Инструментал', '♪ Instrumental', '♪ Instrumental', '♪ Instrumental', '♪ Instrumentalny', '♪ 纯音乐', '♪ インスト'),
+  'note.loadError': s('Не удалось загрузить текст — проверьте интернет', 'Couldn’t load lyrics — check your internet connection', 'Songtext konnte nicht geladen werden – prüfe die Internetverbindung', 'Impossible de charger les paroles — vérifiez votre connexion', 'Nie udało się pobrać tekstu — sprawdź internet', '无法加载歌词——请检查网络', '歌詞を読み込めません。ネット接続を確認してください'),
+
+  /* ---- распознавание по звуку ---- */
+  'rec.listening': s('Слушаю звук на ПК…', 'Listening to your PC’s audio…', 'Höre den PC-Ton ab…', 'J’écoute le son du PC…', 'Słucham dźwięku z komputera…', '正在聆听电脑声音…', 'PCの音を聞いています…'),
+  'rec.recognizing': s('Определяю трек по звуку…', 'Identifying the track by sound…', 'Erkenne den Titel am Klang…', 'Identification du titre par le son…', 'Rozpoznaję utwór po dźwięku…', '正在通过声音识别歌曲…', '音から曲を認識中…'),
+  'rec.nomatch': s('Не удалось распознать — пробую снова', 'Couldn’t identify it — trying again', 'Nicht erkannt – versuche es erneut', 'Non reconnu — nouvelle tentative', 'Nie rozpoznano — próbuję ponownie', '未能识别——正在重试', '認識できませんでした。再試行します'),
+  'rec.error': s('Нет связи с сервисом распознавания', 'Can’t reach the recognition service', 'Erkennungsdienst nicht erreichbar', 'Service de reconnaissance injoignable', 'Brak połączenia z usługą rozpoznawania', '无法连接识别服务', '認識サービスに接続できません'),
+  'notice.smtc': s('Плеер сам сообщает трек — распознавание по звуку не нужно', 'The player reports the track itself — no need to identify by sound', 'Der Player meldet den Titel selbst – keine Erkennung per Klang nötig', 'Le lecteur indique lui-même le titre — pas besoin de reconnaissance sonore', 'Odtwarzacz sam podaje utwór — rozpoznawanie po dźwięku niepotrzebne', '播放器会自行报告歌曲，无需声音识别', 'プレーヤーが曲情報を提供しているため、音による認識は不要です'),
+  'notice.disabled': s('Распознавание по звуку выключено', 'Recognition by sound is off', 'Erkennung per Klang ist aus', 'La reconnaissance sonore est désactivée', 'Rozpoznawanie po dźwięku jest wyłączone', '声音识别已关闭', '音による認識はオフです'),
+  'notice.silent': s('На ПК сейчас не играет звук', 'No sound is playing on your PC', 'Auf dem PC läuft gerade kein Ton', 'Aucun son n’est joué sur le PC', 'Na komputerze nic teraz nie gra', '电脑当前没有声音', 'PCで今は音が鳴っていません'),
+  'notice.verifying': s('Та же песня? Проверяю ещё раз по новому звуку…', 'Same song? Checking once more with fresh audio…', 'Derselbe Song? Prüfe noch einmal mit neuem Ton…', 'Même chanson ? Nouvelle vérification avec le son actuel…', 'Ta sama piosenka? Sprawdzam jeszcze raz na świeżym dźwięku…', '还是同一首歌？正在用最新的声音再确认一次…', '同じ曲？新しい音でもう一度確認しています…'),
+  'notice.confirmed': s('Трек подтверждён: {artist} — {title}', 'Track confirmed: {artist} — {title}', 'Titel bestätigt: {artist} – {title}', 'Titre confirmé : {artist} — {title}', 'Utwór potwierdzony: {artist} — {title}', '已确认歌曲：{artist} — {title}', '曲を確認しました：{artist} — {title}'),
+  'notice.found': s('Найдено: {artist} — {title}', 'Found: {artist} — {title}', 'Gefunden: {artist} – {title}', 'Trouvé : {artist} — {title}', 'Znaleziono: {artist} — {title}', '已找到：{artist} — {title}', '見つかりました：{artist} — {title}'),
+
+  /* ---- первый запуск ---- */
+  'ob.prompt': s('Включите любимую песню на родном языке', 'Play your favorite song in your native language', 'Spiel dein Lieblingslied in deiner Muttersprache ab', 'Lancez votre chanson préférée dans votre langue maternelle', 'Włącz ulubioną piosenkę w swoim ojczystym języku', '请播放一首你母语的最爱歌曲', '母語のお気に入りの曲を再生してください'),
+  'ob.hint': s('Я послушаю, найду текст и пойму, на каком языке вы говорите', 'I’ll listen, find the lyrics and work out which language you speak', 'Ich höre zu, finde den Songtext und erkenne deine Sprache', 'J’écoute, je trouve les paroles et je devine votre langue', 'Posłucham, znajdę tekst i rozpoznam twój język', '我会聆听、找到歌词，并判断你使用的语言', '曲を聞いて歌詞を探し、あなたの言語を判断します'),
+  'ob.lyrics': s('Ищу текст песни…', 'Looking for the lyrics…', 'Suche den Songtext…', 'Je cherche les paroles…', 'Szukam tekstu piosenki…', '正在查找歌词…', '歌詞を探しています…'),
+  'ob.notFound': s('Не нашёл текст этой песни. Попробуйте другую или выберите язык внизу', 'Couldn’t find lyrics for this song. Try another one or pick a language below', 'Für diesen Song keinen Text gefunden. Probiere einen anderen oder wähle unten eine Sprache', 'Paroles introuvables pour ce titre. Essayez-en un autre ou choisissez une langue en bas', 'Nie znalazłem tekstu tej piosenki. Spróbuj innej albo wybierz język poniżej', '没有找到这首歌的歌词。换一首试试，或在下方选择语言', 'この曲の歌詞が見つかりませんでした。別の曲を試すか、下で言語を選んでください'),
+  'ob.detected': s('Ваш язык — {lang}', 'Your language is {lang}', 'Deine Sprache ist {lang}', 'Votre langue est {lang}', 'Twój język to {lang}', '你的语言是 {lang}', 'あなたの言語は{lang}です'),
+  'ob.welcome': s('Добро пожаловать!', 'Welcome!', 'Willkommen!', 'Bienvenue !', 'Witaj!', '欢迎！', 'ようこそ！'),
+  'ob.chooseLanguage': s('Выбрать язык', 'Choose language', 'Sprache wählen', 'Choisir la langue', 'Wybierz język', '选择语言', '言語を選択'),
+  'ob.pickTitle': s('Выберите язык', 'Choose your language', 'Wähle deine Sprache', 'Choisissez votre langue', 'Wybierz swój język', '请选择语言', '言語を選んでください'),
+  'ob.back': s('Назад', 'Back', 'Zurück', 'Retour', 'Wstecz', '返回', '戻る'),
+};

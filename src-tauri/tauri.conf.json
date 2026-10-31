@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "AutoLyrics",
+  "version": "0.1.0",
+  "identifier": "com.autolyrics.app",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "AutoLyrics",
+        "width": 1000,
+        "height": 640,
+        "minWidth": 360,
+        "minHeight": 240,
+        "decorations": false,
+        "resizable": true,
+        "center": true,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "AutoLyrics",
+    "shortDescription": "Synced lyrics and a music visualizer for whatever plays on your PC",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": true,
+        "languages": ["Russian", "English", "German", "French", "Polish", "SimpChinese", "Japanese"]
+      }
+    }
+  }
+}
