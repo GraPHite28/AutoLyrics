@@ -172,5 +172,4 @@ src/                 interface (HTML/CSS/JS): background, visualizer, title card
 src-tauri/src/       Rust: media_watcher (SMTC), audio_capture (WASAPI loopback), analyzer (FFT),
                      recognizer (Shazam), lyrics/ (sources, .lrc folder), genre, album, predict, shell
 docs/screenshots/    README screenshots (taken in demo mode)
-PLAN.md              plan and status of the stages (in Russian)
 ```
