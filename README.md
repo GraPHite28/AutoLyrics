@@ -1,137 +1,176 @@
 # AutoLyrics
 
-> **English in short.** A soft, colourful Windows app that picks up whatever music is playing on your PC
-> (via the player itself or by listening to the system audio), shows **synced lyrics** and draws an
-> **audio visualizer matched to the genre**. The interface is hidden until you right-click.
-> UI languages: Русский, English, Deutsch, Français, Polski, 中文, 日本語. Free and open source (GPL-3.0).
-> Download the installer from [Releases](../../releases). Details below are in Russian.
+**English** · [Русский](README.ru.md)
 
-Мягкое цветное окно для Windows, которое само подхватывает музыку на ПК, показывает
-синхронизированный текст песни и рисует визуализатор под жанр. Интерфейс скрыт — всё
-(меню и настройки) открывается правым кликом мыши.
+A soft, colourful Windows app that picks up whatever music is playing on your PC, shows **synced
+lyrics** and draws an **audio visualizer matched to the genre**. The interface stays hidden —
+everything (menu and settings) opens with a right click.
 
-Языки интерфейса: Русский, English, Deutsch, Français, Polski, 中文, 日本語.
+<p align="center">
+  <img src="docs/screenshots/hero.jpg" alt="AutoLyrics: synced lyrics, album-art colours and a pop-style visualizer" width="900">
+</p>
 
-## Установка
+> The screenshots are taken in the app's built-in demo mode with sample data (made-up lyrics and
+> artwork), so no real song texts are shown.
 
-1. Скачайте `AutoLyrics_<версия>_x64-setup.exe` со страницы [Releases](../../releases).
-2. Запустите. Установка — для текущего пользователя, права администратора не нужны; язык
-   установщика можно выбрать.
-3. **Установщик не подписан цифровой подписью**, поэтому Windows SmartScreen может показать
-   «Неизвестный издатель»: нажмите «Подробнее» → «Всё равно запустить». Сверить файл можно по
-   SHA-256 из описания релиза.
+UI languages: English, Русский, Deutsch, Français, Polski, 中文, 日本語.
 
-Требования: Windows 10 (1809+) или 11 и WebView2 (в Windows 11 уже есть). Только Windows.
+## Features
 
-## Как это работает
+- **Finds the track by itself.** Uses the player's own data (Yandex Music, Spotify, Chrome/Edge, VLC…) or,
+  if the player does not report it, **listens to the system audio** and identifies the song by an audio
+  fingerprint.
+- **Synced lyrics** from several sources, saved locally as plain `.lrc` files — you can drop in your own.
+- **Genre-aware visualizer** with seven styles that crossfade smoothly; colours come from the album art.
+- **Soft, animated interface:** search → found track → lyrics intro animations, optional
+  *Liquid Glass* buttons, tray icon, autostart.
+- **Seven languages**, picked on first run by detecting the language of your favourite song.
 
-- **Трек.** Если плеер сообщает трек системе (Яндекс Музыка, Spotify, Chrome/Edge, VLC…), берём его
-  оттуда. Если нет — программа слушает звук, который играет на ПК, и определяет песню по
-  отпечатку (алгоритм Shazam); смещение внутри трека даёт синхронизацию текста. Так работает и
-  веб-плеер в Яндекс Браузере, который сам трек системе не сообщает.
-- **Текст.** LRCLIB, NetEase, QQ Music и KuGou (с синхронизацией по строкам) и lyrics.ovh
-  (обычный текст) опрашиваются параллельно, результат берётся по приоритету. Найденное сохраняется
-  в папку `lyrics` рядом с программой как обычные `.lrc` — туда же можно положить свой файл
-  `Артист - Название.lrc`: он всегда в приоритете и никогда не перезаписывается. Необязательно:
-  ключ официального API Musixmatch (на бесплатном тарифе даёт неполный текст без синхронизации).
-- **Визуализатор.** Спектр, удары и темп считаются из звука. Стиль выбирается по жанру
-  (из Shazam или iTunes), а если жанр неизвестен — оценивается по самому звуку. Семь стилей,
-  переключаются плавно; при поиске трека визуализатор сглажен и размыт, как фон.
-- **Цвета.** Фон строится из цветов обложки альбома.
-- **Первый запуск.** Приветствие на всех языках просит включить любимую песню на родном языке;
-  язык определяется по найденному тексту. Есть и кнопка ручного выбора. Язык меняется в меню.
-- **Конец трека.** Когда песня доиграла, программа сразу определяет следующую (важно для
-  переходов без паузы). Необязательно: «заготовка» следующего трека альбома (по умолчанию выключена —
-  на несколько секунд может показать не ту песню).
+<table>
+  <tr>
+    <td><img src="docs/screenshots/visualizer-electronic.jpg" alt="Electronic style"></td>
+    <td><img src="docs/screenshots/visualizer-hiphop.jpg" alt="Hip-hop style"></td>
+    <td><img src="docs/screenshots/visualizer-rock.jpg" alt="Rock style"></td>
+  </tr>
+  <tr>
+    <td align="center">Electronic</td>
+    <td align="center">Hip-hop</td>
+    <td align="center">Rock</td>
+  </tr>
+</table>
 
-## Управление
+Also: pop (bubbles), chill (aurora), classical/jazz (thin flowing lines) and soft blobs.
 
-| Действие | Как |
+## Install
+
+1. Download `AutoLyrics_<version>_x64-setup.exe` from [Releases](../../releases).
+2. Run it. It installs for the current user — no administrator rights needed — and you can pick the
+   installer language.
+3. **The installer is not code-signed**, so Windows SmartScreen may show "Unknown publisher":
+   click *More info* → *Run anyway*. You can verify the file with the SHA-256 in the release notes.
+
+Requirements: Windows 10 (1809+) or Windows 11 and WebView2 (already part of Windows 11). Windows only.
+
+## First run
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/onboarding.jpg" alt="First run: play your favourite song"></td>
+    <td><img src="docs/screenshots/onboarding-detected.jpg" alt="Language detected from the lyrics"></td>
+    <td><img src="docs/screenshots/language-picker.jpg" alt="Manual language picker"></td>
+  </tr>
+</table>
+
+The greeting cycles through all seven languages and asks you to play your favourite song in your
+native language. The app finds the song, looks up its lyrics and **detects the language from the text**.
+There is also a button at the bottom to choose the language manually. You can change it any time in
+the menu.
+
+## How it works
+
+- **Track.** If the player reports the track to Windows, we use that. Otherwise the app listens to the
+  audio playing on your PC and identifies the song by a fingerprint (Shazam's algorithm); the match offset
+  keeps the lyrics in sync. This also works for web players that do not report anything to the system.
+- **Lyrics.** LRCLIB, NetEase, QQ Music and KuGou (line-synced) and lyrics.ovh (plain text) are queried in
+  parallel; the result is picked by priority. What is found is saved to the `lyrics` folder next to the
+  app as plain `.lrc` files. Put your own `Artist - Title.lrc` there: it always wins and is never
+  overwritten. Optional: an official Musixmatch API key (the free tier returns partial, unsynced text).
+- **Visualizer.** Spectrum, beats and tempo are computed from the audio. The style follows the genre
+  (from Shazam or iTunes); if the genre is unknown it is estimated from the sound itself. While a track is
+  being searched for, the visualizer is smoothed and blurred like the background.
+- **End of track.** When a song ends, the app starts identifying the next one right away (important for
+  gapless transitions). Optional "guess the next album track" (off by default — it may briefly show the wrong
+  song).
+
+## Controls
+
+| Action | How |
 |---|---|
-| Меню и все настройки | правая кнопка мыши |
-| Перетащить окно | левая кнопка мыши |
-| Полный экран | двойной клик |
-| Свернуть в трей / вернуть | пункт «В трей» / клик по значку в трее |
-| Закрыть | пункт «Закрыть» или «Выйти» в меню трея |
+| Menu and all settings | right mouse button |
+| Move the window | left mouse button |
+| Fullscreen | double click |
+| Hide to tray / bring back | "Minimize to tray" / click the tray icon |
+| Quit | "Close" in the menu or "Quit" in the tray menu |
 
-В меню: варианты песни, «Определить сейчас», размер и сдвиг текста, визуализатор, анимации,
-Musixmatch, автозапуск с Windows, язык, Liquid Glass (преломление у кнопок, только WebView2).
+<p align="center">
+  <img src="docs/screenshots/menu.jpg" alt="The right-click menu with Liquid Glass buttons" width="520">
+</p>
 
-## Если что-то не работает
+## Troubleshooting
 
-- **Текст не найден.** Для редких песен его может не быть ни в одном источнике. Положите свой
-  `.lrc` в папку `lyrics` (кнопка «Папка с текстами» в меню) — он подхватится сразу.
-- **Песня не определяется.** Нужен звук на ПК и интернет. Музыка из защищённых (DRM) источников
-  может записываться как тишина. Кнопка «Определить сейчас» повторяет попытку.
-- **Антивирус или SmartScreen ругаются.** Программа не подписана и записывает системный звук
-  (WASAPI loopback) — это ожидаемо для такого приложения; исходный код открыт.
+- **No lyrics found.** Rare songs may be missing from every source. Put your own `.lrc` into the
+  `lyrics` folder (the "Lyrics folder" button in the menu) — it is picked up immediately.
+- **Song is not identified.** It needs sound on the PC and an internet connection. Music from DRM-protected
+  sources may be captured as silence. "Identify now" retries.
+- **Antivirus or SmartScreen complains.** The app is unsigned and captures the system audio (WASAPI
+  loopback) — expected for this kind of program; the source code is open.
 
-## Конфиденциальность
+## Privacy
 
-Телеметрии и учётных записей нет. Настройки хранятся только на вашем компьютере. Наружу уходит:
+No telemetry, no accounts. Settings are stored only on your computer. What leaves your PC:
 
-| Что | Куда |
+| What | Where to |
 |---|---|
-| Название и артист (поиск текста, жанра, альбома) | LRCLIB, NetEase, QQ Music, KuGou, lyrics.ovh, iTunes |
-| Отпечаток звука — несколько секунд числовых данных, **не сама запись** | Shazam |
-| Обложки — по ссылкам из ответов сервисов | сервера обложек |
-| Название и артист + ваш ключ (только если вы его указали) | Musixmatch (официальный API) |
+| Title and artist (lyrics, genre and album lookup) | LRCLIB, NetEase, QQ Music, KuGou, lyrics.ovh, iTunes |
+| An audio fingerprint — a few seconds of numeric data, **not the recording** | Shazam |
+| Cover art, from links in the services' replies | cover servers |
+| Title and artist + your key (only if you set one) | Musixmatch (official API) |
 
-Сама запись звука не сохраняется и не отправляется.
+The audio itself is never saved or sent anywhere.
 
-## Важное о правах и сервисах
+## Rights and third-party services
 
-- **Тексты песен принадлежат их правообладателям.** Программа не содержит текстов и не
-  распространяет их: она получает текст от сторонних сервисов и показывает его локально для
-  личного использования. Сохранённые `.lrc` лежат у вас на диске — не публикуйте их.
-- **Сторонние сервисы используются без договоров с ними.** Часть из них (Shazam, NetEase,
-  QQ Music, KuGou) вызывается по неофициальным интерфейсам: они могут измениться, ограничить
-  запросы или перестать работать, а их условия использования действуют независимо от лицензии кода.
-  Используйте на свой риск. Musixmatch — только через официальный API и ваш личный ключ.
-- **Проект не связан и не одобрен** Shazam/Apple, Яндексом, Spotify, Musixmatch, Valve и другими
-  упомянутыми компаниями; все названия принадлежат их владельцам.
+- **Song lyrics belong to their rights holders.** The app contains no lyrics and does not redistribute
+  them: it fetches the text from third-party services and shows it locally for personal use. The saved
+  `.lrc` files live on your disk — please do not publish them.
+- **Third-party services are used without agreements with them.** Some of them (Shazam, NetEase, QQ Music,
+  KuGou) are called through unofficial interfaces: they can change, rate-limit or stop working, and their
+  terms of use apply regardless of this code's licence. Use at your own risk. Musixmatch is used only through
+  its official API with your personal key.
+- **Not affiliated with or endorsed by** Shazam/Apple, Yandex, Spotify, Musixmatch, Valve or any other
+  company mentioned; all names belong to their owners.
 
-## Поддержать проект
+## Support the project
 
-Программа бесплатна и останется бесплатной. После суток работы в меню появляется кнопка
-«♥ Поддержать проект» со ссылкой на обмен Steam. **Пожертвование добровольное и ничего не даёт
-взамен.** Кнопку можно скрыть насовсем («Не показывать больше»).
+The app is free and will stay free. After a day of use a "♥ Support the project" button appears in the
+menu with a Steam trade link. **A donation is voluntary and gives nothing in return.** You can hide the
+button for good ("Don't show again").
 
-## Лицензия
+## License
 
-[GPL-3.0-or-later](LICENSE). Программа использует библиотеку
-[songrec](https://github.com/marin-m/SongRec) (GPL-3.0+) для расчёта отпечатка звука, поэтому и сама
-распространяется на условиях GPL: получатель установщика вправе получить исходный код (он здесь),
-менять его и распространять дальше на тех же условиях. Остальные зависимости — под разрешающими
-лицензиями (MIT, Apache-2.0 и подобные).
+[GPL-3.0-or-later](LICENSE). The app uses the [songrec](https://github.com/marin-m/SongRec) library
+(GPL-3.0+) to compute the audio fingerprint, so it is distributed under the GPL as well: anyone who
+receives the installer may get the source code (it is here), modify it and redistribute it under the
+same terms. The other dependencies use permissive licences (MIT, Apache-2.0 and similar).
 
-**Благодарности:** [SongRec](https://github.com/marin-m/SongRec) (отпечаток звука),
-[LRCLIB](https://lrclib.net) (открытая база синхронизированных текстов), [Tauri](https://tauri.app),
+**Credits:** [SongRec](https://github.com/marin-m/SongRec) (audio fingerprinting),
+[LRCLIB](https://lrclib.net) (open synced-lyrics database), [Tauri](https://tauri.app),
 [cpal](https://github.com/RustAudio/cpal), [RustFFT](https://github.com/ejmahler/RustFFT),
 [reqwest](https://github.com/seanmonstar/reqwest), [tokio](https://tokio.rs).
 
-## Сборка из исходников
+## Build from source
 
-Нужны Rust (MSVC-тулчейн, Visual Studio Build Tools) и WebView2. Node.js не нужен — интерфейс
-написан на чистом JavaScript без сборщика.
+You need Rust (MSVC toolchain, Visual Studio Build Tools) and WebView2. Node.js is not needed — the
+interface is plain JavaScript with no bundler.
 
 ```powershell
 cd src-tauri
-cargo run                 # запуск в режиме разработки
-cargo test                # тесты
+cargo run                 # run in development mode
+cargo test                # tests
 cargo install tauri-cli --version "^2" --locked
-cargo tauri build --bundles nsis   # release-сборка и установщик
+cargo tauri build --bundles nsis   # release build and installer
 ```
 
-Отладка: переменная `AUTOLYRICS_DEBUG=1` печатает работу распознавания и поиска текстов.
-Интерфейс можно посмотреть и в обычном браузере, отдав папку `src` любым статическим сервером
-(демо-режим): параметры `?viz=rock`, `?lang=de`, `?ob=1`, `?lyrics=de`, `?donate=1`.
+Debugging: set `AUTOLYRICS_DEBUG=1` to print what recognition and lyrics search are doing.
+The interface also runs in a regular browser (demo mode): serve the `src` folder with any static server
+and use the parameters `?viz=rock`, `?lang=de`, `?ob=1`, `?lyrics=de`, `?menu=1`, `?picker=1`, `?donate=1`.
 
-## Структура
+## Project layout
 
 ```
-src/                 интерфейс (HTML/CSS/JS): фон, визуализатор, заставка, меню, i18n
+src/                 interface (HTML/CSS/JS): background, visualizer, title card, menu, i18n
 src-tauri/src/       Rust: media_watcher (SMTC), audio_capture (WASAPI loopback), analyzer (FFT),
-                     recognizer (Shazam), lyrics/ (источники, .lrc-папка), genre, album, predict, shell
-PLAN.md              план и статус этапов
+                     recognizer (Shazam), lyrics/ (sources, .lrc folder), genre, album, predict, shell
+docs/screenshots/    README screenshots (taken in demo mode)
+PLAN.md              plan and status of the stages (in Russian)
 ```

@@ -26,7 +26,43 @@ if (demo) {
   if (lang && isSupported(lang)) settings.language = lang;
 }
 
-const DEMO_TRACK = { id: 1, title: 'Demo Track', artist: 'AutoLyrics', album: '', durationMs: 60000, cover: null, source: 'demo' };
+/** Нарисованная обложка для демо (скриншоты): абстрактное «утро» в тёплых цветах. */
+function makeDemoCover() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 600;
+  const g = c.getContext('2d');
+  const sky = g.createLinearGradient(0, 0, 0, 600);
+  sky.addColorStop(0, '#20104a');
+  sky.addColorStop(0.55, '#c2368f');
+  sky.addColorStop(1, '#ff9a4d');
+  g.fillStyle = sky;
+  g.fillRect(0, 0, 600, 600);
+  const sun = g.createRadialGradient(300, 360, 10, 300, 360, 190);
+  sun.addColorStop(0, '#fff3c4');
+  sun.addColorStop(0.45, '#ffcf5a');
+  sun.addColorStop(1, 'rgba(255, 150, 80, 0)');
+  g.fillStyle = sun;
+  g.fillRect(0, 0, 600, 600);
+  g.fillStyle = '#2a0f3d';
+  g.beginPath();
+  g.moveTo(0, 600);
+  g.lineTo(0, 470);
+  g.quadraticCurveTo(150, 400, 300, 470);
+  g.quadraticCurveTo(450, 540, 600, 450);
+  g.lineTo(600, 600);
+  g.fill();
+  return c.toDataURL('image/jpeg', 0.9);
+}
+
+const DEMO_TRACK = {
+  id: 1,
+  title: 'Colors of the Morning',
+  artist: 'Demo Artist',
+  album: 'Demo',
+  durationMs: 60000,
+  cover: demo ? makeDemoCover() : null,
+  source: 'demo',
+};
 const demoOnboarding = demo && !settings.onboarded;
 
 // Тексты для проверки определения языка (?lyrics=de и т. д.)
@@ -548,6 +584,13 @@ if (!settings.onboarded) {
   onboarding.start();
 }
 
+// Демо для скриншотов: ?menu=1, ?picker=1, ?dialog=1 открывают меню, выбор языка, окно пожертвования
+if (demo) {
+  if (demoParams.get('menu')) setTimeout(() => menu.open(36, 36), 6500);
+  if (demoParams.get('picker')) setTimeout(() => picker.open(), 6500);
+  if (demoParams.get('dialog')) setTimeout(() => donateDialog.open(), 6500);
+}
+
 invoke('set_audio_recognition', { enabled: settings.audioRecognition });
 invoke('set_musixmatch_key', { key: settings.musixmatchKey });
 invoke('set_predict_next', { enabled: settings.predictNext });
@@ -572,9 +615,9 @@ async function demoInvoke(cmd) {
   if (cmd === 'get_candidates') {
     return {
       items: [
-        { key: 'a', title: 'Demo Track', artist: 'AutoLyrics', coverUrl: null },
-        { key: 'b', title: 'Demo Track (Sped Up)', artist: 'AutoLyrics', coverUrl: null },
-        { key: 'c', title: 'Another Song', artist: 'Someone Else', coverUrl: null },
+        { key: 'a', title: 'Colors of the Morning', artist: 'Demo Artist', coverUrl: null },
+        { key: 'b', title: 'Colors of the Morning (Sped Up)', artist: 'Demo Artist', coverUrl: null },
+        { key: 'c', title: 'Morning Colors', artist: 'Another Artist', coverUrl: null },
       ],
       selected: 0,
     };
@@ -594,7 +637,7 @@ async function demoInvoke(cmd) {
   const lines = DEMO_LYRICS[demoParams.get('lyrics') || 'ru'] || DEMO_LYRICS.ru;
   return {
     found: true,
-    source: 'demo',
+    source: 'LRCLIB',
     origin: '',
     instrumental: false,
     plain: null,
